@@ -1,0 +1,4 @@
+LIBRARY advapi32.dll
+EXPORTS
+CryptDecrypt=myCryptDecrypt @1198
+CryptEncrypt=myCryptEncrypt @1204
