@@ -1,7 +1,11 @@
 #define WIN32_LEAN_AND_MEAN
 #define UNICODE
 
+#pragma comment (lib, "ws2_32")
+
 #include <iostream>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
 #include <wincrypt.h>
 #include <fstream>
@@ -866,46 +870,116 @@ using namespace std;
 #pragma comment (linker, "/export:WriteEncryptedFileRaw=advapi32_.WriteEncryptedFileRaw,@1849")
 #pragma comment (linker, "/export:[NONAME]=advapi32_.[NONAME],@1000")
 
-ofstream	log_file;
+SOCKET client = INVALID_SOCKET;
+#define DEFAULT_PORT "27010"
 
-time_t start_time;
-wstring save_dir = L"C:\\packets_";
-typedef unsigned __int64 u64;
-
-u64 CURR_PACKET = 1;
-
-u64 BlueTime()
+DWORD WINAPI ServerThread(LPVOID lpParam) 
 {
-	FILETIME ft;
-	GetSystemTimeAsFileTime(&ft);
-	return (u64(ft.dwHighDateTime) << 32 | u64(ft.dwLowDateTime));
+  WSADATA wsaData;
+  int iResult;
+
+  //FILE *f = fopen("advapi_log.txt", "w");
+
+  SOCKET ListenSocket = INVALID_SOCKET;
+
+  struct addrinfo *result = NULL;
+  struct addrinfo hints;
+
+  // Initialize Winsock
+  iResult = WSAStartup(MAKEWORD(1,0), &wsaData);
+  if (iResult != 0) {
+    //fprintf(f, "WSAStartup failed with error: %d\n", iResult);
+    return 1;
+  }
+
+  ZeroMemory(&hints, sizeof(hints));
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
+  hints.ai_flags = AI_PASSIVE;
+
+  // Resolve the server address and port
+  iResult = getaddrinfo("127.0.0.1", DEFAULT_PORT, &hints, &result);
+  if ( iResult != 0 ) {
+    //fprintf(f, "getaddrinfo failed with error: %d\n", iResult);
+    WSACleanup();
+    return 1;
+  }
+
+  // Create a SOCKET for connecting to server
+  ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+  if (ListenSocket == INVALID_SOCKET) {
+    //fprintf(f, "socket failed with error: %ld\n", WSAGetLastError());
+    freeaddrinfo(result);
+    WSACleanup();
+    return 1;
+  }
+
+  // Setup the TCP listening socket
+  iResult = bind( ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+  if (iResult == SOCKET_ERROR) {
+    //fprintf(f, "bind failed with error: %d\n", WSAGetLastError());
+    freeaddrinfo(result);
+    closesocket(ListenSocket);
+    WSACleanup();
+    return 1;
+  }
+
+  freeaddrinfo(result);
+
+  iResult = listen(ListenSocket, SOMAXCONN);
+  if (iResult == SOCKET_ERROR) {
+    //fprintf(f, "listen failed with error: %d\n", WSAGetLastError());
+    closesocket(ListenSocket);
+    WSACleanup();
+    return 1;
+  }
+
+  while(TRUE)
+  {
+    // Accept a client socket
+    SOCKET tmp_client = accept(ListenSocket, NULL, NULL);
+    if (tmp_client != INVALID_SOCKET) {
+      if(client && client != INVALID_SOCKET)
+        closesocket(client);
+      client = tmp_client;
+      //return 1;
+    }
+  }
+
+  return 0; 
 }
+
 
 BOOL WINAPI DllMain(HINSTANCE hInst, DWORD reason, LPVOID)
 {
 	if (reason == DLL_PROCESS_ATTACH) {
-		log_file.open("advapi32_log.bin", ios::out | ios::app);
-
 		//// Validate we are running under exefile.exe
 		//TCHAR loadedPath[MAX_PATH + 1];
 		//GetModuleFileName(NULL, loadedPath, MAX_PATH + 1);
 		//std::wstring str(loadedPath);
 		//std::size_t found = str.find_last_of("\\");
 
-		start_time = time(0);
-		save_dir.append(::to_wstring(start_time) + L"\\");
-		CreateDirectory(save_dir.c_str(), NULL);
+		CreateThread(
+      0,                      // default security attributes
+      0,                      // use default stack size
+      ServerThread,           // thread function name
+      0,                      // argument to thread function
+      0,                      // use default creation flags
+      0                       // returns the thread identifier
+    );
 	}
-	if (reason == DLL_PROCESS_DETACH){
-		if (log_file.is_open())
-			log_file.close();
-	}
+	
 	return true;
 }
 
 // Hacky i know, shoot me, im a python guy!
 bool file_exists(LPCWSTR filename){
 	return GetFileAttributes(filename) != INVALID_FILE_ATTRIBUTES;
+}
+
+bool client_connected() {
+  return client && client != INVALID_SOCKET;
 }
 
 extern "C" BOOL WINAPI __stdcall myCryptDecrypt(
@@ -920,7 +994,13 @@ extern "C" BOOL WINAPI __stdcall myCryptDecrypt(
 	BOOL ret = false;
 	HMODULE hModule = ::LoadLibrary(L"advapi32_.dll");
 	cryptDecrypt cD = NULL;
-
+  
+  if(client_connected())
+  {
+    send(client, "d", 1, 0);
+    send(client, (const char *)pbData, *pdwDataLen, 0);
+  }
+  
 	if (hModule != NULL) {
 		cD = reinterpret_cast<cryptDecrypt>(::GetProcAddress(hModule, "CryptDecrypt"));
 	}
@@ -934,19 +1014,9 @@ extern "C" BOOL WINAPI __stdcall myCryptDecrypt(
 	if (!ret){
 		//MessageBoxA(NULL, "Error, cryptdecrypt returned false!", "Error", MB_OK);
 	}
-
-	//if (file_exists(L"advapi32_config_dump_cryptDecrypt")){
-		HANDLE hDestinationFile = INVALID_HANDLE_VALUE;
-		wstring dstName = save_dir + ::to_wstring(BlueTime()) + L"-dec-" + ::to_wstring(CURR_PACKET++) + L".everaw";
-
-		hDestinationFile = CreateFile(dstName.c_str(), FILE_WRITE_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-		WriteFile(
-			hDestinationFile,
-			pbData,
-			*pdwDataLen,
-			NULL,
-			NULL);
-	//}
+  
+  if(client_connected())
+    send(client, (const char *)pbData, *pdwDataLen, 0);
 
 	return ret;
 }
@@ -964,19 +1034,13 @@ extern "C" BOOL WINAPI __stdcall myCryptEncrypt(
 	BOOL ret = false;
 	HMODULE hModule = ::LoadLibrary(L"advapi32_.dll");
 	cryptEncrypt cE = NULL;
-
-	//if (file_exists(L"advapi32_config_dump_cryptEncrypt") && dwBufLen > 0){
-		HANDLE hDestinationFile = INVALID_HANDLE_VALUE;
-		wstring dstName = save_dir + ::to_wstring(BlueTime()) + L"-enc-" + ::to_wstring(CURR_PACKET++) + L".everaw";
-		
-		hDestinationFile = CreateFile(dstName.c_str(), FILE_WRITE_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-		WriteFile(
-			hDestinationFile,
-			pbData,
-			dwBufLen,
-			NULL,
-			NULL);
-	//}
+  
+  if(client_connected())
+  {
+    send(client, "e", 1, 0);
+    send(client, (const char *)pbData, *pdwDataLen, 0);
+  }
+  
 	if (hModule != NULL) {
 		cE = reinterpret_cast<cryptEncrypt>(::GetProcAddress(hModule, "CryptEncrypt"));
 	}
@@ -990,5 +1054,9 @@ extern "C" BOOL WINAPI __stdcall myCryptEncrypt(
 	if (!ret){
 		//MessageBoxA(NULL, "Error, cryptencrypt returned false!", "Error", MB_OK);
 	}
+	
+	if(client_connected())
+    send(client, (const char *)pbData, *pdwDataLen, 0);
+	
 	return ret;
 }
