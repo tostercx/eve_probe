@@ -75,52 +75,61 @@ namespace eve_probe
                     int bytesRec = 0;
                     client.Connect(remoteEP);
 
-                    if(client.Connected) do
+                    if (client.Connected)
                     {
-                        // Receive the response from the remote device.
-                        try { bytesRec = client.Receive(bytes); } catch { bytesRec = 0; }
-                        var dec = Encoding.ASCII.GetString(bytes, 0, bytesRec);
-                        
-                        // check for "header"
-                        if (bytesRec == 1 && (dec == "e" || dec == "d"))
+                        do
                         {
-                            var outgoing = dec == "e";
+                            // Receive the response from the remote device.
+                            bytesRec = 0;
+                            bytesRec = client.Receive(bytes);
+                            var dec = Encoding.ASCII.GetString(bytes, 0, bytesRec);
 
-                            var packet = new Packet(){
-                                nr = packets++,
-                                direction = outgoing ? "Out" : "In",
-                                type = "Unknown",
-                                timestamp = DateTime.Now,
-                            };
-
-                            // receive first part of data
-                            try { bytesRec = client.Receive(bytes); } catch { bytesRec = 0; }
-                            if (bytesRec > 0)
+                            // check for "header"
+                            if (bytesRec > 0 && (dec[0] == 'e' || dec[0] == 'd'))
                             {
-                                dec = Encoding.ASCII.GetString(bytes, 0, bytesRec);
-                                if (outgoing)
-                                    packet.rawData = dec;
-                                else
-                                    packet.cryptedData = dec;
-                            }
+                                var outgoing = dec[0] == 'e';
 
-                            // receive second part of data
-                            try { bytesRec = client.Receive(bytes); } catch { bytesRec = 0; }
-                            if (bytesRec > 0)
-                            {
-                                dec = Encoding.ASCII.GetString(bytes, 0, bytesRec);
-                                if (outgoing)
-                                    packet.cryptedData = dec;
-                                else
-                                    packet.rawData = dec;
-                            }
+                                var packet = new Packet()
+                                {
+                                    nr = packets++,
+                                    direction = outgoing ? "Out" : "In",
+                                    type = "Unknown",
+                                    timestamp = DateTime.Now,
+                                    rawData = "",
+                                    cryptedData = "",
+                                };
 
-                            // send to UI
-                            if(!appClosing)
-                                inMain(() => viewModel.packets.Add(packet));
+                                // unpack first part of data
+                                var data_start = 5;
+                                var data_length = BitConverter.ToInt32(bytes, 1);
+                                
+                                if (data_length > 0)
+                                {
+                                    if (outgoing)
+                                        packet.rawData = dec.Substring(data_start, data_length);
+                                    else
+                                        packet.cryptedData = dec.Substring(data_start, data_length);
+                                }
+
+                                // unpack second part of data
+                                data_start += data_length + 4;
+                                data_length = BitConverter.ToInt32(bytes, data_start - 4);
+
+                                if (data_length > 0)
+                                {
+                                    if (outgoing)
+                                        packet.cryptedData = dec.Substring(data_start, data_length);
+                                    else
+                                        packet.rawData = dec.Substring(data_start, data_length);
+                                }
+
+                                // send to UI
+                                if (!appClosing)
+                                    inMain(() => viewModel.packets.Add(packet));
+                            }
                         }
+                        while (bytesRec > 0);
                     }
-                    while (bytesRec > 0);
 
                     // something went wrong - cleanup socket, try again
                     if (client.Connected)

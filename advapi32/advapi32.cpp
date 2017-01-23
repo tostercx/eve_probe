@@ -11,6 +11,7 @@
 #include <fstream>
 #include <inttypes.h>
 #include <string>
+#include <string.h>
 #include <time.h>
 
 using namespace std;
@@ -982,6 +983,9 @@ bool client_connected() {
   return client && client != INVALID_SOCKET;
 }
 
+#define MAX_PACKET 51200
+const int zero = 0;
+
 extern "C" BOOL WINAPI __stdcall myCryptDecrypt(
 	__in    HCRYPTKEY  hKey,
 	__in    HCRYPTHASH hHash,
@@ -995,10 +999,26 @@ extern "C" BOOL WINAPI __stdcall myCryptDecrypt(
 	HMODULE hModule = ::LoadLibrary(L"advapi32_.dll");
 	cryptDecrypt cD = NULL;
   
-  if(client_connected())
+  BOOL report = (pbData && client_connected() && *pdwDataLen > 0);
+  char buffer[MAX_PACKET];
+  char *end = buffer + 1;
+  
+  if(report)
   {
-    send(client, "d", 1, 0);
-    send(client, (const char *)pbData, *pdwDataLen, 0);
+    buffer[0] = 'd';
+    
+    if(*pdwDataLen < MAX_PACKET / 3)
+    {
+      memcpy(end, pdwDataLen, 4);
+      end += 4;
+      memcpy(end, pbData, *pdwDataLen);
+      end += *pdwDataLen;
+    }
+    else
+    {
+      memcpy(end, &zero, 4);
+      end += 4;
+    }
   }
   
 	if (hModule != NULL) {
@@ -1015,8 +1035,23 @@ extern "C" BOOL WINAPI __stdcall myCryptDecrypt(
 		//MessageBoxA(NULL, "Error, cryptdecrypt returned false!", "Error", MB_OK);
 	}
   
-  if(client_connected())
-    send(client, (const char *)pbData, *pdwDataLen, 0);
+  if(report)
+  {
+    if(ret && *pdwDataLen < MAX_PACKET / 3)
+    {
+      memcpy(end, pdwDataLen, 4);
+      end += 4;
+      memcpy(end, pbData, *pdwDataLen);
+      end += *pdwDataLen;
+    }
+    else
+    {
+      memcpy(end, &zero, 4);
+      end += 4;
+    }
+    
+    send(client, buffer, end - buffer, 0);
+  }
 
 	return ret;
 }
@@ -1035,10 +1070,26 @@ extern "C" BOOL WINAPI __stdcall myCryptEncrypt(
 	HMODULE hModule = ::LoadLibrary(L"advapi32_.dll");
 	cryptEncrypt cE = NULL;
   
-  if(client_connected())
+  BOOL report = (pbData && client_connected() && *pdwDataLen > 0);
+  char buffer[MAX_PACKET];
+  char *end = buffer + 1;
+  
+  if(report)
   {
-    send(client, "e", 1, 0);
-    send(client, (const char *)pbData, *pdwDataLen, 0);
+    buffer[0] = 'e';
+    
+    if(*pdwDataLen < MAX_PACKET / 3 && *pdwDataLen > 0)
+    {
+      memcpy(end, pdwDataLen, 4);
+      end += 4;
+      memcpy(end, pbData, *pdwDataLen);
+      end += *pdwDataLen;
+    }
+    else
+    {
+      memcpy(end, &zero, 4);
+      end += 4;
+    }
   }
   
 	if (hModule != NULL) {
@@ -1055,8 +1106,23 @@ extern "C" BOOL WINAPI __stdcall myCryptEncrypt(
 		//MessageBoxA(NULL, "Error, cryptencrypt returned false!", "Error", MB_OK);
 	}
 	
-	if(client_connected())
-    send(client, (const char *)pbData, *pdwDataLen, 0);
+	if(report)
+  {
+    if(ret && *pdwDataLen < MAX_PACKET / 3 && *pdwDataLen > 0)
+    {
+      memcpy(end, pdwDataLen, 4);
+      end += 4;
+      memcpy(end, pbData, *pdwDataLen);
+      end += *pdwDataLen;
+    }
+    else
+    {
+      memcpy(end, &zero, 4);
+      end += 4;
+    }
+    
+    send(client, buffer, end - buffer, 0);
+  }
 	
 	return ret;
 }
