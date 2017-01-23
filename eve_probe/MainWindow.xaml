@@ -8,7 +8,7 @@
         Title="EVE Probe"
         Height="420" Width="900"
         MinHeight="420" MinWidth="900"
-        Closing="Window_Closing"
+        Closing="Window_Closing" Icon="sputnik.ico"
         >
     <Grid>
         <DataGrid x:Name="packetList" Margin="10,10,0,10.4" IsReadOnly="True" ItemsSource="{Binding packets}" AutoGenerateColumns="False" SelectionMode="Single" SelectionUnit="FullRow" CanUserAddRows="False" HorizontalAlignment="Left" Width="309" SelectionChanged="packetList_SelectionChanged">

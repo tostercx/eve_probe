@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using LowLevelDesign.Hexify;
 using eveMarshal;
 using System.Linq;
+using System.IO;
 
 namespace eve_probe
 {
@@ -165,7 +166,7 @@ namespace eve_probe
         {
             var data = packet.rawData;
 
-            if (data.Length == 0)
+            if (data == null || data.Length == 0)
             {
                 // send to UI
                 if (!appClosing)

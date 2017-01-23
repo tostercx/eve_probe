@@ -5,7 +5,7 @@ VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "eve_probe", "eve_probe\eve_probe.csproj", "{8153944E-9A1A-4FCA-8BC0-0612A2D1049B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "eveMarshal", "..\eveMarshal\eveMarshal.csproj", "{41D634C1-627E-4DC4-8878-8BC486CA0B81}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "eveMarshal", "eveMarshal\eveMarshal.csproj", "{41D634C1-627E-4DC4-8878-8BC486CA0B81}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
