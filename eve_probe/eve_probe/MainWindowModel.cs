@@ -9,5 +9,6 @@ namespace eve_probe
         public ObservableCollection<Packet> packets { get; set; }
         public string rawHex { get; set; }
         public string cryptedHex { get; set; }
+        public string objectText { get; set; }
     }
 }

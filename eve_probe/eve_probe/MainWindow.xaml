@@ -20,13 +20,15 @@
             </DataGrid.Columns>
         </DataGrid>
         <TabControl x:Name="tabControl" Margin="324,10,10,10">
+            <TabItem Header="Unmarshaled Object">
+                <TextBox x:Name="objectView" IsReadOnly="True" Text="{Binding objectText}" FontFamily="Courier New" />
+            </TabItem>
             <TabItem Header="Decrypted Hex">
-                <TextBox x:Name="rawHex" IsReadOnly="True" Text="{Binding rawHex}" FontFamily="Courier New" />
+                <TextBox x:Name="rawHexView" IsReadOnly="True" Text="{Binding rawHex}" FontFamily="Courier New" />
             </TabItem>
             <TabItem Header="Encrypted Hex">
                 <TextBox x:Name="cryptedHexView" IsReadOnly="True" Text="{Binding cryptedHex}" FontFamily="Courier New" />
             </TabItem>
-            <TextBox x:Name="rawHexView" Height="23" TextWrapping="Wrap" Text="TextBox" Width="120"/>
         </TabControl>
     </Grid>
 </Window>

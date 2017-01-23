@@ -7,6 +7,8 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
 using LowLevelDesign.Hexify;
+using eveMarshal;
+using System.Linq;
 
 namespace eve_probe
 {
@@ -17,8 +19,11 @@ namespace eve_probe
         public string type { get; set; }
         public DateTime timestamp { get; set; }
 
-        public string rawData { set; get; }
-        public string cryptedData { set; get; }
+        public byte[] rawData { set; get; }
+        public byte[] cryptedData { set; get; }
+
+        public PyRep PyObject { set; get; }
+        public string objectText { set; get; }
     }
 
     public partial class MainWindow : Window
@@ -27,6 +32,11 @@ namespace eve_probe
         private int packets = 0;
         private bool appClosing = false;
         private Socket client;
+
+        public const byte HeaderByte = 0x7E;
+        // not a real magic since zlib just doesn't include one..
+        public const byte ZlibMarker = 0x78;
+        public const byte PythonMarker = 0x03;
 
         public MainWindow()
         {
@@ -82,12 +92,11 @@ namespace eve_probe
                             // Receive the response from the remote device.
                             bytesRec = 0;
                             bytesRec = client.Receive(bytes);
-                            var dec = Encoding.ASCII.GetString(bytes, 0, bytesRec);
 
                             // check for "header"
-                            if (bytesRec > 0 && (dec[0] == 'e' || dec[0] == 'd'))
+                            if (bytesRec > 0 && (bytes[0] == 'e' || bytes[0] == 'd'))
                             {
-                                var outgoing = dec[0] == 'e';
+                                var outgoing = bytes[0] == 'e';
 
                                 var packet = new Packet()
                                 {
@@ -95,37 +104,47 @@ namespace eve_probe
                                     direction = outgoing ? "Out" : "In",
                                     type = "Unknown",
                                     timestamp = DateTime.Now,
-                                    rawData = "",
-                                    cryptedData = "",
+                                    objectText = "",
                                 };
 
                                 // unpack first part of data
                                 var data_start = 5;
                                 var data_length = BitConverter.ToInt32(bytes, 1);
                                 
-                                if (data_length > 0)
+                                if (data_length > 0 && data_start + data_length <= bytes.Length)
                                 {
                                     if (outgoing)
-                                        packet.rawData = dec.Substring(data_start, data_length);
+                                    {
+                                        packet.rawData = new byte[data_length];
+                                        Array.Copy(bytes, data_start, packet.rawData, 0, data_length);
+                                    }
                                     else
-                                        packet.cryptedData = dec.Substring(data_start, data_length);
+                                    {
+                                        packet.cryptedData = new byte[data_length];
+                                        Array.Copy(bytes, data_start, packet.cryptedData, 0, data_length);
+                                    }
                                 }
 
                                 // unpack second part of data
                                 data_start += data_length + 4;
                                 data_length = BitConverter.ToInt32(bytes, data_start - 4);
 
-                                if (data_length > 0)
+                                if (data_length > 0 && data_start + data_length <= bytes.Length)
                                 {
                                     if (outgoing)
-                                        packet.cryptedData = dec.Substring(data_start, data_length);
+                                    {
+                                        packet.cryptedData = new byte[data_length];
+                                        Array.Copy(bytes, data_start, packet.cryptedData, 0, data_length);
+                                    }
                                     else
-                                        packet.rawData = dec.Substring(data_start, data_length);
+                                    {
+                                        packet.rawData = new byte[data_length];
+                                        Array.Copy(bytes, data_start, packet.rawData, 0, data_length);
+                                    }
                                 }
 
-                                // send to UI
-                                if (!appClosing)
-                                    inMain(() => viewModel.packets.Add(packet));
+                                // unmarshal data
+                                new Thread(() => unmarshal(packet)).Start();
                             }
                         }
                         while (bytesRec > 0);
@@ -139,6 +158,86 @@ namespace eve_probe
 
                 Thread.Sleep(500);
             }
+        }
+
+        // Decode EVE's packets
+        private void unmarshal(Packet packet)
+        {
+            var data = packet.rawData;
+
+            if (data.Length == 0)
+            {
+                // send to UI
+                if (!appClosing)
+                    inMain(() => viewModel.packets.Add(packet));
+                return;
+            }
+
+            // Is this a compressed file?
+            if (data[0] == ZlibMarker)
+            {
+                // Yes, decompress it.
+                try
+                {
+                    data = Zlib.Decompress(data);
+                }
+                catch
+                {
+                    packet.objectText = "Zlib decompression failed";
+                }
+
+                if (data == null)
+                {
+                    // Decompress failed.
+                    packet.objectText = "Zlib decompression failed";
+                }
+                else
+                {
+                    // Update raw view
+                    packet.rawData = data;
+                }
+            }
+
+            // Is this a proper python serial stream?
+            if (data[0] != HeaderByte)
+            {
+                // No, is this a python file?
+                // I have no idea what to do with it
+                if (data[0] == PythonMarker)
+                    packet.objectText = "Python file";
+                else if(data[0] != ZlibMarker)
+                    packet.objectText = "Unknown data type";
+            }
+            else
+            {
+                try
+                {
+                    Unmarshal un = new Unmarshal();
+                    PyRep obj = un.Process(data);
+
+                    // Attempt cast to PyPacket
+                    if (obj.Type == PyObjectType.ObjectData)
+                    {
+                        PyObject packetData = obj as PyObject;
+                        try
+                        {
+                            obj = new PyPacket(packetData);
+                        }
+                        catch { }
+                    }
+
+                    packet.PyObject = obj;
+                    packet.objectText = PrettyPrinter.Print(obj);
+                }
+                catch
+                {
+                    packet.objectText = "Error while decoding";
+                }
+            }
+
+            // send to UI
+            if (!appClosing)
+                inMain(() => viewModel.packets.Add(packet));
         }
 
         // cleanup before close
@@ -156,8 +255,9 @@ namespace eve_probe
             {
                 var packet = (Packet)packetList.SelectedItem;
 
-                viewModel.rawHex = Hex.PrettyPrint(Encoding.ASCII.GetBytes(packet.rawData));
-                viewModel.cryptedHex = Hex.PrettyPrint(Encoding.ASCII.GetBytes(packet.cryptedData));
+                viewModel.rawHex = Hex.PrettyPrint(packet.rawData);
+                viewModel.cryptedHex = Hex.PrettyPrint(packet.cryptedData);
+                viewModel.objectText = packet.objectText;
             }
         }
     }
