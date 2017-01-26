@@ -95,7 +95,7 @@ namespace eve_probe
                             bytesRec = client.Receive(bytes);
 
                             // check for "header"
-                            if (bytesRec > 0 && (bytes[0] == 'e' || bytes[0] == 'd'))
+                            if (bytesRec > 0 && (bytes[0] == 'e' || bytes[0] == 'd') && !viewModel.isPaused)
                             {
                                 var outgoing = bytes[0] == 'e';
 
@@ -261,6 +261,9 @@ namespace eve_probe
                 viewModel.rawHex = (packet.rawData == null) ? "" : Hex.PrettyPrint(packet.rawData);
                 viewModel.cryptedHex = (packet.cryptedData == null) ? "" : Hex.PrettyPrint(packet.cryptedData);
                 viewModel.objectText = packet.objectText;
+
+                viewModel.copyEnabled = packet.direction == "Out";
+                tabControl.SelectedIndex = 0;
             }
         }
 
@@ -276,8 +279,23 @@ namespace eve_probe
                     {
                         packet.PyObject.Encode(b);
                         viewModel.injectorHex = Hex.PrettyPrint(ms.ToArray());
+                        tabControl.SelectedIndex = 1;
                     }
                 }
+            }
+        }
+
+        private void pause_Click(object sender, RoutedEventArgs e)
+        {
+            viewModel.isPaused = !viewModel.isPaused;
+            viewModel.pauseText = viewModel.isPaused ? "Unpause" : "Pause";
+        }
+
+        private void clear_Click(object sender, RoutedEventArgs e)
+        {
+            for (int i = viewModel.packets.Count - 1; i >= 0; i--)
+            {
+                viewModel.packets.RemoveAt(i);
             }
         }
     }

@@ -22,8 +22,10 @@
         <TabControl x:Name="tabControl" Margin="324,10,10,10">
             <TabItem Header="Capture">
                 <Grid>
-                    <Button x:Name="toInjector" Content="Copy to injector" Margin="0,10,10.4,0" HorizontalAlignment="Right" Width="109" Height="23" VerticalAlignment="Top" Click="toInjector_Click"/>
-                    <TabControl x:Name="captureView" Margin="0,38,0.4,-0.4">
+                    <Button x:Name="pause" Content="{Binding pauseText}" Margin="10,10,0,0" Height="25" VerticalAlignment="Top" Click="pause_Click" HorizontalAlignment="Left" Width="67"/>
+                    <Button x:Name="clear" Content="Clear" Margin="82,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="clear_Click"/>
+                    <Button x:Name="toInjector" IsEnabled="{Binding copyEnabled}" Content="Copy to injector" Margin="0,10,10,0" HorizontalAlignment="Right" Width="109" Height="25" VerticalAlignment="Top" Click="toInjector_Click"/>
+                    <TabControl x:Name="captureView" Margin="0,40,0.4,-0.4">
                         <TabItem Header="JSON">
                             <TextBox x:Name="objectView" IsReadOnly="True" Text="{Binding objectText}" FontFamily="Courier New" />
                         </TabItem>

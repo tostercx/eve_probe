@@ -13,5 +13,9 @@ namespace eve_probe
         public string objectText { get; set; }
 
         public string injectorHex { get; set; }
+        public bool copyEnabled { get; set; } = false;
+
+        public string pauseText { get; set; } = "Pause";
+        public bool isPaused { get; set; } = false;
     }
 }
