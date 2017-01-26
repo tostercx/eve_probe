@@ -217,6 +217,7 @@ namespace eve_probe
                     PyRep obj = un.Process(data);
 
                     // Attempt cast to PyPacket
+                    /* // TODO: implement PyPacket encoder
                     if (obj.Type == PyObjectType.ObjectData)
                     {
                         PyObject packetData = obj as PyObject;
@@ -226,6 +227,7 @@ namespace eve_probe
                         }
                         catch { }
                     }
+                    //*/
 
                     packet.PyObject = obj;
                     packet.objectText = PrettyPrinter.Print(obj);
@@ -256,9 +258,26 @@ namespace eve_probe
             {
                 var packet = (Packet)packetList.SelectedItem;
 
-                viewModel.rawHex = Hex.PrettyPrint(packet.rawData);
-                viewModel.cryptedHex = Hex.PrettyPrint(packet.cryptedData);
+                viewModel.rawHex = (packet.rawData == null) ? "" : Hex.PrettyPrint(packet.rawData);
+                viewModel.cryptedHex = (packet.cryptedData == null) ? "" : Hex.PrettyPrint(packet.cryptedData);
                 viewModel.objectText = packet.objectText;
+            }
+        }
+
+        private void toInjector_Click(object sender, RoutedEventArgs e)
+        {
+            if (packetList.SelectedItem != null)
+            {
+                var packet = (Packet)packetList.SelectedItem;
+
+                using (var ms = new MemoryStream())
+                {
+                    using (var b = new BinaryWriter(ms))
+                    {
+                        packet.PyObject.Encode(b);
+                        viewModel.injectorHex = Hex.PrettyPrint(ms.ToArray());
+                    }
+                }
             }
         }
     }
