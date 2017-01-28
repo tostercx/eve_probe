@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text;
+using System.Web;
 
 namespace eveMarshal
 {
@@ -131,6 +132,33 @@ namespace eveMarshal
             }
             builder.Append("]");
             return builder.ToString();
+        }
+
+        public override string dumpJSON()
+        {
+            string ret = "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) +
+                ",\"addrType\":" + HttpUtility.JavaScriptStringEncode(addrType.ToString(), true);
+
+            if (addrType != PyAddressType.Broadcast)
+            {
+                if (callID > 0)
+                    ret += ",\"callID\":" + callID;
+                if (service != null && service.Length > 0)
+                    ret += ",\"service\":" + HttpUtility.JavaScriptStringEncode(service, true);
+            }
+            switch (addrType)
+            {
+                case PyAddressType.Node:
+                case PyAddressType.Client:
+                    ret += ",\"nodeID\":" + addrID;
+                    break;
+                case PyAddressType.Broadcast:
+                    ret += ",\"broadcastType\":" + HttpUtility.JavaScriptStringEncode(broadcastType, true);
+                    ret += ",\"idType\":" + HttpUtility.JavaScriptStringEncode(service, true);
+                    break;
+            }
+
+            return ret + "}";
         }
     }
 }

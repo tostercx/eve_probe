@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Web;
 
 namespace eveMarshal
 {
@@ -117,6 +118,25 @@ namespace eveMarshal
                 }
             }
             return builder.ToString();
+        }
+
+        public override string dumpJSON()
+        {
+            string ret = "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) + ",\"items\":[";
+            bool first = true;
+            if (Items != null)
+            {
+                foreach (var item in Items)
+                {
+                    ret += first ? "" : ",";
+                    if (item != null)
+                        ret += item.dumpJSON();
+                    else
+                        ret += "null";
+                    first = false;
+                }
+            }
+            return ret + "]}";
         }
     }
 

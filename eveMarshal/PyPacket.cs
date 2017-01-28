@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Web;
 
 namespace eveMarshal
 {
@@ -125,6 +126,23 @@ namespace eveMarshal
             builder.AppendLine(pfx1 + "Named Payload:");
             PrettyPrinter.Print(builder, pfx2, namedPayload);
             return builder.ToString();
+        }
+
+        public override string dumpJSON()
+        {
+            string ret = "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) +
+                ",\"typeID\":" + packetType +
+                ",\"userID\":" + userID +
+                ",\"name\":" + HttpUtility.JavaScriptStringEncode(typeString.Substring("carbon.common.script.net.machoNetPacket.".Length), true);
+            if (source != null)
+                ret += ",\"source\":" + source.dumpJSON();
+            if (dest != null)
+                ret += ",\"destination\":" + dest.dumpJSON();
+            if (payload != null)
+                ret += ",\"payload\":" + payload.dumpJSON();
+            if (namedPayload != null)
+                ret += ",\"namedPayload\":" + namedPayload.dumpJSON();
+            return ret + "}";
         }
     }
 }

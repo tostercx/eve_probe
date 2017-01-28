@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using System.IO;
 using System.Text;
+using System.Web;
 
 namespace eveMarshal
 {
@@ -48,6 +49,13 @@ namespace eveMarshal
             return builder.ToString();
         }
 
+        public override string dumpJSON()
+        {
+            string ret = "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) + ",\"name\":" + HttpUtility.JavaScriptStringEncode(Name, true);
+            if (Arguments != null)
+                ret += ",\"arguments\":" + Arguments.dumpJSON();
+            return ret + "}";
+        }
     }
 
 }

@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Text;
+using System.Web;
 
 namespace eveMarshal.Extended
 {
@@ -33,6 +34,15 @@ namespace eveMarshal.Extended
             builder.AppendLine("[NotificationStream " + (zeroOne == 0 ? "Tuple01" : "SubStream") + "]");
             PrettyPrinter.Print(builder, pfx1, notice);
             return builder.ToString();
+        }
+
+        public override string dumpJSON()
+        {
+            string ret = "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) +
+                ",\"zeroOne\":" + zeroOne;
+            if (notice != null)
+                ret += ",\"notice\":" + notice.dumpJSON();
+            return ret + "}";
         }
     }
 }

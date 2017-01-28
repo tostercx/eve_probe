@@ -217,7 +217,7 @@ namespace eve_probe
                     PyRep obj = un.Process(data);
 
                     // Attempt cast to PyPacket
-                    /* // TODO: implement PyPacket encoder
+                    //*
                     if (obj.Type == PyObjectType.ObjectData)
                     {
                         PyObject packetData = obj as PyObject;
@@ -230,12 +230,14 @@ namespace eve_probe
                     //*/
 
                     packet.PyObject = obj;
-                    packet.objectText = PrettyPrinter.Print(obj);
+                    //packet.objectText = PrettyPrinter.Print(obj);
+                    packet.objectText = JSON_PrettyPrinter.Process(obj.dumpJSON());
                 }
-                catch
+                catch (Exception e)
                 {
-                    packet.objectText = "Error while decoding";
+                    packet.objectText = "Error while decoding\r\n\r\n" + e.Message;
                 }
+                
             }
 
             // send to UI
@@ -262,7 +264,8 @@ namespace eve_probe
                 viewModel.cryptedHex = (packet.cryptedData == null) ? "" : Hex.PrettyPrint(packet.cryptedData);
                 viewModel.objectText = packet.objectText;
 
-                viewModel.copyEnabled = packet.direction == "Out";
+                //viewModel.copyEnabled = packet.direction == "Out";
+                viewModel.copyEnabled = true;
                 tabControl.SelectedIndex = 0;
             }
         }
@@ -279,6 +282,7 @@ namespace eve_probe
                     {
                         packet.PyObject.Encode(b);
                         viewModel.injectorHex = Hex.PrettyPrint(ms.ToArray());
+                        viewModel.injectorJSON = viewModel.objectText;
                         tabControl.SelectedIndex = 1;
                     }
                 }
@@ -297,6 +301,24 @@ namespace eve_probe
             {
                 viewModel.packets.RemoveAt(i);
             }
+        }
+
+        private void encode_Click(object sender, RoutedEventArgs e)
+        {
+            /*
+            var js = new JavaScriptSerializer();
+            var obj = js.Deserialize<PyRep>(viewModel.injectorJSON);
+
+            using (var ms = new MemoryStream())
+            {
+                using (var b = new BinaryWriter(ms))
+                {
+                    obj.Encode(b);
+                    viewModel.injectorHex = Hex.PrettyPrint(ms.ToArray());
+                    injectorTabs.SelectedIndex = 1;
+                }
+            }
+            */
         }
     }
 }

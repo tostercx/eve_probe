@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Web;
 
 namespace eveMarshal
 {
@@ -24,6 +25,11 @@ namespace eveMarshal
         public override string dump(string prefix)
         {
             return "[PyNone]";
+        }
+
+        public override string dumpJSON()
+        {
+            return "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) + "}";
         }
     }
 

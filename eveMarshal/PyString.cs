@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text;
+using System.Web;
 
 namespace eveMarshal
 {
@@ -163,6 +164,13 @@ namespace eveMarshal
             {
                 return "[PyString \"" + Value + "\"" + Environment.NewLine + prefix + "          <binary len=" + Value.Length + "> hex=\"" + PrettyPrinter.ByteArrayToString(Raw) + "\"]";
             }
+        }
+
+        public override string dumpJSON()
+        {
+            string ret = "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) +
+                ",\"value\":" + HttpUtility.JavaScriptStringEncode(Value, true);
+            return ret + "}";
         }
 
     }

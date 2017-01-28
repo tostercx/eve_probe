@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text;
+using System.Web;
 
 namespace eveMarshal
 {
@@ -17,7 +18,12 @@ namespace eveMarshal
 
         public PyObjectType Type
         {
-            get; private set;
+            get; set;
+        }
+
+        public PyRep()
+        {
+
         }
 
         protected PyRep(PyObjectType type)
@@ -125,7 +131,8 @@ namespace eveMarshal
                     }
                 }
 
-                throw new InvalidDataException("Not an integer");
+                //throw new InvalidDataException("Not an integer");
+                return 0;
             }
         }
 
@@ -146,6 +153,11 @@ namespace eveMarshal
         }
 
         public abstract string dump(string prefix);
+
+        public virtual string dumpJSON()
+        {
+            return "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) + ",\"warn\"':\"unimplemented\"}";
+        }
     }
 
 }

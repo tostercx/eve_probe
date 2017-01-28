@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:eve_probe"
         mc:Ignorable="d"
         Title="EVE Probe"
-        Height="420" Width="900"
+        Height="700" Width="1000"
         MinHeight="420" MinWidth="900"
         Closing="Window_Closing" Icon="sputnik.ico"
         >
@@ -27,19 +27,29 @@
                     <Button x:Name="toInjector" IsEnabled="{Binding copyEnabled}" Content="Copy to injector" Margin="0,10,10,0" HorizontalAlignment="Right" Width="109" Height="25" VerticalAlignment="Top" Click="toInjector_Click"/>
                     <TabControl x:Name="captureView" Margin="0,40,0.4,-0.4">
                         <TabItem Header="JSON">
-                            <TextBox x:Name="objectView" IsReadOnly="True" Text="{Binding objectText}" FontFamily="Courier New" />
+                            <TextBox x:Name="objectView" IsReadOnly="True" Text="{Binding objectText}" FontFamily="Courier New" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" />
                         </TabItem>
                         <TabItem Header="Hex">
-                            <TextBox x:Name="rawHexView" IsReadOnly="True" Text="{Binding rawHex}" FontFamily="Courier New" />
+                            <TextBox x:Name="rawHexView" IsReadOnly="True" Text="{Binding rawHex}" FontFamily="Courier New" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" />
                         </TabItem>
                         <TabItem Header="Crypted">
-                            <TextBox x:Name="cryptedHexView" IsReadOnly="True" Text="{Binding cryptedHex}" FontFamily="Courier New" />
+                            <TextBox x:Name="cryptedHexView" IsReadOnly="True" Text="{Binding cryptedHex}" FontFamily="Courier New" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" />
                         </TabItem>
                     </TabControl>
                 </Grid>
             </TabItem>
             <TabItem Header="Injector">
-                <TextBox x:Name="injectorHexView" IsReadOnly="True" Text="{Binding injectorHex}" FontFamily="Courier New" />
+                <TabControl Name="injectorTabs">
+                    <TabItem Header="JSON">
+                        <Grid>
+                            <Button x:Name="encode" Content="Encode" Margin="10,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="encode_Click"/>
+                            <TextBox x:Name="injectorJSONView" IsReadOnly="False" Text="{Binding injectorJSON}" FontFamily="Courier New" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" Margin="0,40,0.2,-0.2" />
+                        </Grid>
+                    </TabItem>
+                    <TabItem Header="Hex">
+                        <TextBox x:Name="injectorHexView" IsReadOnly="True" Text="{Binding injectorHex}" FontFamily="Courier New" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                    </TabItem>
+                </TabControl>
             </TabItem>
         </TabControl>
     </Grid>

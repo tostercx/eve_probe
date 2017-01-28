@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Text;
+using System.Web;
 
 namespace eveMarshal
 {
@@ -69,6 +70,12 @@ namespace eveMarshal
         public override string dump(string prefix)
         {
             return "[PyInt " + Value + "]";
+        }
+
+        public override string dumpJSON()
+        {
+            string ret = "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) + ",\"value\":" + Value;
+            return ret + "}";
         }
     }
 

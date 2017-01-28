@@ -53,5 +53,13 @@ namespace eveMarshal.Extended
             PrettyPrinter.Print(builder, pfx1, response);
             return builder.ToString();
         }
+
+        public override string dumpJSON()
+        {
+            string ret = "{type: \"CallRsp\"";
+            if (response != null)
+                ret += ", arguments: " + response.dumpJSON();
+            return ret + "}";
+        }
     }
 }
