@@ -7,7 +7,7 @@ namespace eve_probe
         public static string Process(string jsonString)
         {
             var stringBuilder = new StringBuilder();
-            var spacer = ' ';
+            var spacer = '\t';
 
             bool escaping = false;
             bool inQuotes = false;
@@ -38,18 +38,18 @@ namespace eve_probe
                         {
                             stringBuilder.Append(character);
                             stringBuilder.Append("\r\n");
-                            stringBuilder.Append(spacer, indentation * 2);
+                            stringBuilder.Append(spacer, indentation);
                         }
                         else if (character == '[' || character == '{')
                         {
                             stringBuilder.Append(character);
                             stringBuilder.Append("\r\n");
-                            stringBuilder.Append(spacer, ++indentation * 2);
+                            stringBuilder.Append(spacer, ++indentation);
                         }
                         else if (character == ']' || character == '}')
                         {
                             stringBuilder.Append("\r\n");
-                            stringBuilder.Append(spacer, --indentation * 2);
+                            stringBuilder.Append(spacer, --indentation);
                             stringBuilder.Append(character);
                         }
                         else if (character == ':')

@@ -156,7 +156,7 @@ namespace eveMarshal
 
         public virtual string dumpJSON()
         {
-            return "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) + ",\"warn\"':\"unimplemented\"}";
+            return "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) + ",\"warn\":\"unimplemented\"}";
         }
     }
 

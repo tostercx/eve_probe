@@ -10,6 +10,9 @@ using LowLevelDesign.Hexify;
 using eveMarshal;
 using System.Linq;
 using System.IO;
+using ScintillaNET;
+using System.Drawing;
+using System.Text.RegularExpressions;
 
 namespace eve_probe
 {
@@ -50,6 +53,28 @@ namespace eve_probe
             // boom?
             DataContext = viewModel;
             InitializeComponent();
+
+            // scintilla
+            objectView.Lexer = Lexer.Json;
+            objectView.StyleResetDefault();
+            objectView.Styles[ScintillaNET.Style.Default].Font = "Consolas";
+            objectView.Styles[ScintillaNET.Style.Default].Weight = 900;
+            objectView.Styles[ScintillaNET.Style.Default].Size = 10;
+            objectView.StyleClearAll();
+            objectView.Styles[ScintillaNET.Style.Json.Number].ForeColor = ColorTranslator.FromHtml("#204070");
+            objectView.Styles[ScintillaNET.Style.Json.Operator].ForeColor = ColorTranslator.FromHtml("#006633");
+            objectView.Styles[ScintillaNET.Style.Json.PropertyName].ForeColor = ColorTranslator.FromHtml("#007050");
+            objectView.Styles[ScintillaNET.Style.Json.String].ForeColor = ColorTranslator.FromHtml("#0050b0");
+            injectorJSONView.Lexer = Lexer.Json;
+            injectorJSONView.StyleResetDefault();
+            injectorJSONView.Styles[ScintillaNET.Style.Default].Font = "Consolas";
+            injectorJSONView.Styles[ScintillaNET.Style.Default].Weight = 900;
+            injectorJSONView.Styles[ScintillaNET.Style.Default].Size = 10;
+            injectorJSONView.StyleClearAll();
+            injectorJSONView.Styles[ScintillaNET.Style.Json.Number].ForeColor = ColorTranslator.FromHtml("#204070");
+            injectorJSONView.Styles[ScintillaNET.Style.Json.Operator].ForeColor = ColorTranslator.FromHtml("#006633");
+            injectorJSONView.Styles[ScintillaNET.Style.Json.PropertyName].ForeColor = ColorTranslator.FromHtml("#007050");
+            injectorJSONView.Styles[ScintillaNET.Style.Json.String].ForeColor = ColorTranslator.FromHtml("#0050b0");
 
             new Thread(SniffSniff).Start();
         }
@@ -262,7 +287,12 @@ namespace eve_probe
 
                 viewModel.rawHex = (packet.rawData == null) ? "" : Hex.PrettyPrint(packet.rawData);
                 viewModel.cryptedHex = (packet.cryptedData == null) ? "" : Hex.PrettyPrint(packet.cryptedData);
-                viewModel.objectText = packet.objectText;
+
+                // what the hacks scyntilla?
+                objectView.ReadOnly = false;
+                objectView.Text = packet.objectText;
+                objectView.Colorize(0, objectView.TextLength);
+                objectView.ReadOnly = true;
 
                 //viewModel.copyEnabled = packet.direction == "Out";
                 viewModel.copyEnabled = true;
@@ -280,9 +310,9 @@ namespace eve_probe
                 {
                     using (var b = new BinaryWriter(ms))
                     {
-                        packet.PyObject.Encode(b);
-                        viewModel.injectorHex = Hex.PrettyPrint(ms.ToArray());
-                        viewModel.injectorJSON = viewModel.objectText;
+                        //packet.PyObject.Encode(b);
+                        //viewModel.injectorHex = Hex.PrettyPrint(ms.ToArray());
+                        injectorJSONView.Text = objectView.Text;
                         tabControl.SelectedIndex = 1;
                     }
                 }
@@ -320,5 +350,55 @@ namespace eve_probe
             }
             */
         }
+
+
+        // -------------------------------------------------------------------------------------
+        // Auto-tab
+        // https://github.com/jacobslusser/ScintillaNET/issues/35
+        private void injectorJSONView_CharAdded(object sender, CharAddedEventArgs e)
+        {
+            //The '}' char.
+            if (e.Char == 125)
+            {
+                int curLine = injectorJSONView.LineFromPosition(injectorJSONView.CurrentPosition);
+
+                if (injectorJSONView.Lines[curLine].Text.Trim() == "}")
+                { //Check whether the bracket is the only thing on the line.. For cases like "if() { }".
+                    SetIndent(injectorJSONView, curLine, GetIndent(injectorJSONView, curLine) - 4);
+                }
+            }
+        }
+
+        private void injectorJSONView_InsertCheck(object sender, InsertCheckEventArgs e)
+        {
+            if ((e.Text.EndsWith("\n") || e.Text.EndsWith("\r")))
+            {
+                int startPos = injectorJSONView.Lines[injectorJSONView.LineFromPosition(injectorJSONView.CurrentPosition)].Position;
+                int endPos = e.Position;
+                string curLineText = injectorJSONView.GetTextRange(startPos, (endPos - startPos)); //Text until the caret so that the whitespace is always equal in every line.
+
+                Match indent = Regex.Match(curLineText, "^[ \\t]*");
+                e.Text = (e.Text + indent.Value);
+                if (Regex.IsMatch(curLineText, "{\\s*$"))
+                {
+                    e.Text = (e.Text + "\t");
+                }
+            }
+        }
+
+        //Codes for the handling the Indention of the lines.
+        //They are manually added here until they get officially added to the Scintilla control.
+        #region "CodeIndent Handlers"
+        const int SCI_SETLINEINDENTATION = 2126;
+        const int SCI_GETLINEINDENTATION = 2127;
+        private void SetIndent(ScintillaNET.Scintilla scin, int line, int indent)
+        {
+            scin.DirectMessage(SCI_SETLINEINDENTATION, new IntPtr(line), new IntPtr(indent));
+        }
+        private int GetIndent(ScintillaNET.Scintilla scin, int line)
+        {
+            return (scin.DirectMessage(SCI_GETLINEINDENTATION, new IntPtr(line), new IntPtr())).ToInt32();
+        }
+        #endregion
     }
 }
