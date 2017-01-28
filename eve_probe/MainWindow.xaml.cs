@@ -2,17 +2,15 @@
 using System.Collections.ObjectModel;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
-using LowLevelDesign.Hexify;
 using eveMarshal;
-using System.Linq;
 using System.IO;
 using ScintillaNET;
 using System.Drawing;
 using System.Text.RegularExpressions;
+using Be.Windows.Forms;
 
 namespace eve_probe
 {
@@ -75,6 +73,9 @@ namespace eve_probe
             injectorJSONView.Styles[ScintillaNET.Style.Json.Operator].ForeColor = ColorTranslator.FromHtml("#006633");
             injectorJSONView.Styles[ScintillaNET.Style.Json.PropertyName].ForeColor = ColorTranslator.FromHtml("#007050");
             injectorJSONView.Styles[ScintillaNET.Style.Json.String].ForeColor = ColorTranslator.FromHtml("#0050b0");
+
+            // allow hex free-edit @ injector
+            injectorHexView.ByteProvider = new DynamicByteProvider(new byte[0]);
 
             new Thread(SniffSniff).Start();
         }
@@ -285,13 +286,13 @@ namespace eve_probe
             {
                 var packet = (Packet)packetList.SelectedItem;
 
-                viewModel.rawHex = (packet.rawData == null) ? "" : Hex.PrettyPrint(packet.rawData);
-                viewModel.cryptedHex = (packet.cryptedData == null) ? "" : Hex.PrettyPrint(packet.cryptedData);
+                // go Hex! go!
+                rawHexView.ByteProvider = new DynamicByteProvider(packet.rawData);
+                cryptedHexView.ByteProvider = new DynamicByteProvider(packet.cryptedData);
 
                 // what the hacks scyntilla?
                 objectView.ReadOnly = false;
                 objectView.Text = packet.objectText;
-                objectView.Colorize(0, objectView.TextLength);
                 objectView.ReadOnly = true;
 
                 //viewModel.copyEnabled = packet.direction == "Out";

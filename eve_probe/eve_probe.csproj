@@ -43,9 +43,8 @@
     <ApplicationIcon>sputnik.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Hexify, Version=1.1.17004.1, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Hexify.1.1.17004.1\lib\net452\Hexify.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Be.Windows.Forms.HexBox">
+      <HintPath>..\packages\Be.Windows.Forms.HexBox.1.6.1\lib\net40\Be.Windows.Forms.HexBox.dll</HintPath>
     </Reference>
     <Reference Include="PropertyChanged, Version=1.52.1.0, Culture=neutral, PublicKeyToken=ee3ee20bcf148ddd, processorArchitecture=MSIL">
       <HintPath>..\packages\PropertyChanged.Fody.1.52.1\lib\netstandard10\PropertyChanged.dll</HintPath>

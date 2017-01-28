@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:eve_probe"
         xmlns:scintilla="clr-namespace:ScintillaNET;assembly=ScintillaNET"
+        xmlns:hexbox="clr-namespace:Be.Windows.Forms;assembly=Be.Windows.Forms.HexBox"
         mc:Ignorable="d"
         Title="EVE Probe"
         Height="700" Width="1000"
@@ -33,10 +34,26 @@
                             </WindowsFormsHost>
                         </TabItem>
                         <TabItem Header="Hex">
-                            <TextBox x:Name="rawHexView" IsReadOnly="True" Text="{Binding rawHex}" FontFamily="Courier New" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                            <WindowsFormsHost>
+                                <hexbox:HexBox x:Name="rawHexView"
+                                              StringViewVisible="True" 
+                                              UseFixedBytesPerLine="True" 
+                                              VScrollBarVisible="True" 
+                                              LineInfoVisible="True" 
+                                              ReadOnly="True"
+                                              ColumnInfoVisible="True" />
+                            </WindowsFormsHost>
                         </TabItem>
                         <TabItem Header="Crypted">
-                            <TextBox x:Name="cryptedHexView" IsReadOnly="True" Text="{Binding cryptedHex}" FontFamily="Courier New" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                            <WindowsFormsHost>
+                                <hexbox:HexBox x:Name="cryptedHexView"
+                                              StringViewVisible="True" 
+                                              UseFixedBytesPerLine="True" 
+                                              VScrollBarVisible="True" 
+                                              LineInfoVisible="True" 
+                                              ReadOnly="True"
+                                              ColumnInfoVisible="True" />
+                            </WindowsFormsHost>
                         </TabItem>
                     </TabControl>
                 </Grid>
@@ -52,7 +69,15 @@
                         </Grid>
                     </TabItem>
                     <TabItem Header="Hex">
-                        <TextBox x:Name="injectorHexView" IsReadOnly="True" Text="{Binding injectorHex}" FontFamily="Courier New" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                        <WindowsFormsHost>
+                            <hexbox:HexBox x:Name="injectorHexView"
+                                              StringViewVisible="True" 
+                                              UseFixedBytesPerLine="True" 
+                                              VScrollBarVisible="True" 
+                                              LineInfoVisible="True" 
+                                              ReadOnly="False"
+                                              ColumnInfoVisible="True" />
+                        </WindowsFormsHost>
                     </TabItem>
                 </TabControl>
             </TabItem>
