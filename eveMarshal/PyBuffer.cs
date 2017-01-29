@@ -66,6 +66,13 @@ namespace eveMarshal
             return builder.ToString();
         }
 
+        public override string dumpJSON()
+        {
+            string ret = "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) +
+                ",\"name\":" + HttpUtility.JavaScriptStringEncode(Convert.ToBase64String(Data), true);
+            return ret + "}";
+        }
+
     }
 
 }

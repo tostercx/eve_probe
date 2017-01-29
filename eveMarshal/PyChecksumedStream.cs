@@ -46,6 +46,14 @@ namespace eveMarshal
             PrettyPrinter.Print(builder, prefix + PrettyPrinter.Spacer, Data);
             return builder.ToString();
         }
+
+        public override string dumpJSON()
+        {
+            string ret = "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) + ",\"checksum\":" + Checksum;
+            if (Data != null)
+                ret += ",\"arguments\":" + Data.dumpJSON();
+            return ret + "}";
+        }
     }
 
 }

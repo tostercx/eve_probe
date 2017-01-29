@@ -120,6 +120,25 @@ namespace eveMarshal
             return builder.ToString();
         }
 
+        public override string dumpJSON()
+        {
+            string ret = "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) + ",\"items\":{";
+            bool first = true;
+            if (Items != null)
+            {
+                foreach (var item in Dictionary)
+                {
+                    ret += first ? "" : "," + HttpUtility.JavaScriptStringEncode(item.Key.StringValue, true) + ":";
+                    if (item != null)
+                        ret += item.Value.dumpJSON();
+                    else
+                        ret += "null";
+                    first = false;
+                }
+            }
+            return ret + "}}";
+        }
+
     }
 
 }
