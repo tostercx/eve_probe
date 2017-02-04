@@ -2,6 +2,7 @@
 using System.IO;
 using System.Text;
 using System.Linq;
+using System.Web;
 
 namespace eveMarshal
 {
@@ -124,12 +125,12 @@ namespace eveMarshal
         {
             string ret = "{\"type\":" + HttpUtility.JavaScriptStringEncode(this.GetType().Name, true) + ",\"items\":{";
             bool first = true;
-            if (Items != null)
+            if (Dictionary != null)
             {
                 foreach (var item in Dictionary)
                 {
                     ret += first ? "" : "," + HttpUtility.JavaScriptStringEncode(item.Key.StringValue, true) + ":";
-                    if (item != null)
+                    if (item.Value != null)
                         ret += item.Value.dumpJSON();
                     else
                         ret += "null";

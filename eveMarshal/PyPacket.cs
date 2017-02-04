@@ -1,5 +1,6 @@
 ﻿using eveMarshal.Extended;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Web;
@@ -109,8 +110,24 @@ namespace eveMarshal
 
         protected override void EncodeInternal(BinaryWriter output)
         {
-            throw new InvalidOperationException("Function Not Implemented.");
+            dynamic user = new PyNone();
+            if (userID == 0) user = new PyInt(unchecked((int)userID));
+
+            output.WriteOpcode(MarshalOpcode.Object);
+            new PyString(typeString).Encode(output);
+            new PyTuple(new List<PyRep>() {
+                new PyInt(unchecked((int)packetType)),
+                source,
+                dest,
+                user,
+                payload,
+                namedPayload,
+                new PyNone(),
+                new PyNone(),
+                new PyNone(),
+            }).Encode(output);
         }
+
         public override string dump(string prefix)
         {
             string pfx1 = prefix + PrettyPrinter.Spacer;

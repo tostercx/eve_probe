@@ -11,6 +11,7 @@ using ScintillaNET;
 using System.Drawing;
 using System.Text.RegularExpressions;
 using Be.Windows.Forms;
+using System.Web.Helpers;
 
 namespace eve_probe
 {
@@ -243,7 +244,7 @@ namespace eve_probe
                     PyRep obj = un.Process(data);
 
                     // Attempt cast to PyPacket
-                    //*
+                    /*
                     if (obj.Type == PyObjectType.ObjectData)
                     {
                         PyObject packetData = obj as PyObject;
@@ -287,8 +288,10 @@ namespace eve_probe
                 var packet = (Packet)packetList.SelectedItem;
 
                 // go Hex! go!
-                rawHexView.ByteProvider = new DynamicByteProvider(packet.rawData);
-                cryptedHexView.ByteProvider = new DynamicByteProvider(packet.cryptedData);
+                if(packet.rawData != null)
+                    rawHexView.ByteProvider = new DynamicByteProvider(packet.rawData);
+                if (packet.cryptedData != null)
+                    cryptedHexView.ByteProvider = new DynamicByteProvider(packet.cryptedData);
 
                 // what the hacks scyntilla?
                 objectView.ReadOnly = false;
@@ -311,8 +314,8 @@ namespace eve_probe
                 {
                     using (var b = new BinaryWriter(ms))
                     {
-                        //packet.PyObject.Encode(b);
-                        //viewModel.injectorHex = Hex.PrettyPrint(ms.ToArray());
+                        packet.PyObject.Encode(b);
+                        injectorHexView.ByteProvider = new DynamicByteProvider(ms.ToArray());
                         injectorJSONView.Text = objectView.Text;
                         tabControl.SelectedIndex = 1;
                     }
@@ -336,6 +339,8 @@ namespace eve_probe
 
         private void encode_Click(object sender, RoutedEventArgs e)
         {
+            dynamic data = Json.Decode(injectorJSONView.Text);
+
             /*
             var js = new JavaScriptSerializer();
             var obj = js.Deserialize<PyRep>(viewModel.injectorJSON);
