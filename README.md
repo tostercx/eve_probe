@@ -11,15 +11,16 @@ Marshaler
 Memory scanner / botting framework
 - https://github.com/Arcitectus/Sanderling
 
-Connecting to private servers / disabling crypto
+Connecting to private servers / disabling crypto (old?)
 - https://github.com/bluepatcher/blue_patcher
 - https://github.com/stschake/blue_patcher
 
-Exporting HCRYPTKEY
+Exporting HCRYPTKEY (probably won't use this)
 - https://www.nccgroup.trust/globalassets/our-research/uk/whitepapers/exporting_non-exportable_rsa_keys.pdf
 
-DLL injection
+DLL injection (needed main thread, see 2nd link)
 - https://github.com/nefarius/Injector
+- http://www.rohitab.com/discuss/topic/40579-dll-injection-via-thread-hijacking/
 
 Hooking into python
 - https://github.com/lmacken/pyrasite
