@@ -1,6 +1,5 @@
 import socket
 import stackless
-import threading
 import code
 import sys
 
@@ -20,37 +19,35 @@ probe_sock = socket.socket()
 probe_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 probe_sock.bind(('127.0.0.1', 2112))
 probe_sock.listen(10)
-probe_sock.setblocking(0)
-
-# interactive thread
-def probe_shell_thred(c):
-    try:
-        c = probe_sw(c)
-        
-        sys.stdin = c
-        sys.stdout = c
-        #sys.stderr = c
-        
-        code.interact()
-        
-        c.s.shutdown(SHUT_RDWR)
-        c.s.close()
-    except:
-        pass # should auto-die when connection drops
-    
-    sys.stdin = sys.__stdin__
-    sys.stdout = sys.__stdout__
-    sys.stderr = sys.__stderr__
 
 # listening tasklet
 def probe_accept(s):
     while True:
+        c, a = s.accept()
+        c = probe_sw(c)
+        
+        sys.stdin = c
+        sys.stdout = c
+        sys.stderr = c
+        
+        # should break if connection is dropped
         try:
-            c, a = s.accept()
-            print a
-            threading.Thread(target=probe_shell_thred, args=(c,)).start()
+            code.interact()
         except:
             pass
+        
+        # I wanted to kill the socket on clean exit()
+        # but it doesn't seem to work?
+        try:
+            c.s.shutdown(SHUT_RDWR)
+            c.s.close()
+        except:
+            pass
+        
+        # restore original stds
+        sys.stdin = sys.__stdin__
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
         
         stackless.schedule()
 
