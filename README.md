@@ -28,3 +28,6 @@ Hooking into python
 
 Internal python scripts
 - https://github.com/kg/shootbluesscripts
+
+EVE APIs
+- https://esi.evetech.net/ui/#/Universe/get_universe_system_kills
