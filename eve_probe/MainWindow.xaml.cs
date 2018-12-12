@@ -1,20 +1,44 @@
 ﻿using System;
 using System.Collections.ObjectModel;
-using System.Net;
-using System.Net.Sockets;
 using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
 using eveMarshal;
+using EasyHook;
 using System.IO;
 using ScintillaNET;
 using System.Drawing;
 using System.Text.RegularExpressions;
 using Be.Windows.Forms;
 using System.Web.Helpers;
+using System.Runtime.Remoting;
+using System.Diagnostics;
+using System.Collections.Concurrent;
 
 namespace eve_probe
 {
+    public class HookInterface : MarshalByRefObject
+    {
+        public void IsInstalled(Int32 InClientPID)
+        {
+            MessageBox.Show("Hook has been installed in target " + InClientPID + ".\r\n");
+        }
+
+        public void Enqueue(Tuple<bool, byte[], byte[]> message)
+        {
+            MainWindow.Queue.Enqueue(message);
+        }
+
+        public void ReportException(Exception InInfo)
+        {
+            MessageBox.Show("The target process has reported an error:\r\n" + InInfo.ToString());
+        }
+
+        public void Ping()
+        {
+        }
+    }
+
     public class Packet
     {
         public int nr { get; set; }
@@ -34,7 +58,7 @@ namespace eve_probe
         private MainWindowModel viewModel;
         private int packets = 0;
         private bool appClosing = false;
-        private Socket client;
+        public static ConcurrentQueue<Tuple<bool, byte[], byte[]>> Queue = new ConcurrentQueue<Tuple<bool, byte[], byte[]>>();
 
         public const byte HeaderByte = 0x7E;
         // not a real magic since zlib just doesn't include one..
@@ -81,6 +105,28 @@ namespace eve_probe
             new Thread(SniffSniff).Start();
         }
 
+        public void processRawPacket(bool outgoing, byte[] raw, byte[] crypted)
+        {
+            //MessageBox.Show("Got it! P " + viewModel.isPaused);
+
+            if (!viewModel.isPaused)
+            {
+                var packet = new Packet()
+                {
+                    nr = packets++,
+                    direction = outgoing ? "Out" : "In",
+                    type = "Unknown",
+                    timestamp = DateTime.Now,
+                    objectText = "",
+                    rawData = raw,
+                    cryptedData = crypted,
+                };
+
+                // unmarshal data
+                new Thread(() => unmarshal(packet)).Start();
+            }
+        }
+
         // do stuff in UI thread
         public void inMain(Action stuff)
         {
@@ -93,96 +139,13 @@ namespace eve_probe
         // read from advapi captures
         private void SniffSniff()
         {
-            // Data buffer for incoming data.
-            byte[] bytes = new byte[4096];
-
             while (!appClosing)
             {
-                // Connect to a remote device.
-                try
+                Tuple<bool, byte[], byte[]> item = null;
+                while (Queue.TryDequeue(out item))
                 {
-                    // Establish the remote endpoint for the socket.
-                    IPAddress ipAddress = IPAddress.Parse("127.0.0.1");
-                    IPEndPoint remoteEP = new IPEndPoint(ipAddress, 27010);
-
-                    // Create a TCP/IP  socket.
-                    client = new Socket(AddressFamily.InterNetwork,
-                        SocketType.Stream, ProtocolType.Tcp);
-
-                    // Connect the socket to the remote endpoint. Catch any errors.
-                    int bytesRec = 0;
-                    client.Connect(remoteEP);
-
-                    if (client.Connected)
-                    {
-                        do
-                        {
-                            // Receive the response from the remote device.
-                            bytesRec = 0;
-                            bytesRec = client.Receive(bytes);
-
-                            // check for "header"
-                            if (bytesRec > 0 && (bytes[0] == 'e' || bytes[0] == 'd') && !viewModel.isPaused)
-                            {
-                                var outgoing = bytes[0] == 'e';
-
-                                var packet = new Packet()
-                                {
-                                    nr = packets++,
-                                    direction = outgoing ? "Out" : "In",
-                                    type = "Unknown",
-                                    timestamp = DateTime.Now,
-                                    objectText = "",
-                                };
-
-                                // unpack first part of data
-                                var data_start = 5;
-                                var data_length = BitConverter.ToInt32(bytes, 1);
-                                
-                                if (data_length > 0 && data_start + data_length <= bytes.Length)
-                                {
-                                    if (outgoing)
-                                    {
-                                        packet.rawData = new byte[data_length];
-                                        Array.Copy(bytes, data_start, packet.rawData, 0, data_length);
-                                    }
-                                    else
-                                    {
-                                        packet.cryptedData = new byte[data_length];
-                                        Array.Copy(bytes, data_start, packet.cryptedData, 0, data_length);
-                                    }
-                                }
-
-                                // unpack second part of data
-                                data_start += data_length + 4;
-                                data_length = BitConverter.ToInt32(bytes, data_start - 4);
-
-                                if (data_length > 0 && data_start + data_length <= bytes.Length)
-                                {
-                                    if (outgoing)
-                                    {
-                                        packet.cryptedData = new byte[data_length];
-                                        Array.Copy(bytes, data_start, packet.cryptedData, 0, data_length);
-                                    }
-                                    else
-                                    {
-                                        packet.rawData = new byte[data_length];
-                                        Array.Copy(bytes, data_start, packet.rawData, 0, data_length);
-                                    }
-                                }
-
-                                // unmarshal data
-                                new Thread(() => unmarshal(packet)).Start();
-                            }
-                        }
-                        while (bytesRec > 0);
-                    }
-
-                    // something went wrong - cleanup socket, try again
-                    if (client.Connected)
-                        client.Close();
+                    processRawPacket(item.Item1, item.Item2, item.Item3);
                 }
-                catch { }
 
                 Thread.Sleep(500);
             }
@@ -275,9 +238,7 @@ namespace eve_probe
         // cleanup before close
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            // Kill the socket, the thread should exit soon
             appClosing = true;
-            client.Close();
         }
 
         // click packet
@@ -389,6 +350,38 @@ namespace eve_probe
                 {
                     e.Text = (e.Text + "\t");
                 }
+            }
+        }
+
+        private void hook_Click(object sender, RoutedEventArgs e)
+        {
+            String ChannelName = null;
+            Int32 TargetPID = 0;
+
+            Process[] procs = Process.GetProcessesByName("exefile");
+            if (procs.Length == 0)
+            {
+                MessageBox.Show("Could not find EVE (exefile.exe)");
+                return;
+            }
+
+            try
+            {
+                TargetPID = procs[0].Id;
+                RemoteHooking.IpcCreateServer<HookInterface>(ref ChannelName, WellKnownObjectMode.SingleCall);
+                string injectionLibrary = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "HookInject.dll");
+
+                RemoteHooking.Inject(
+                    TargetPID,
+                    injectionLibrary,
+                    injectionLibrary,
+                    ChannelName);
+
+                //MessageBox.Show("Injected to process " + TargetPID);
+            }
+            catch (Exception ExtInfo)
+            {
+                MessageBox.Show("There was an error while connecting to target:\r\n" + ExtInfo.ToString());
             }
         }
 
