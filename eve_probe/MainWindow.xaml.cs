@@ -3,17 +3,18 @@ using System.Collections.ObjectModel;
 using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
-using eveMarshal;
 using EasyHook;
 using System.IO;
 using ScintillaNET;
 using System.Drawing;
 using System.Text.RegularExpressions;
 using Be.Windows.Forms;
-using System.Web.Helpers;
 using System.Runtime.Remoting;
 using System.Diagnostics;
 using System.Collections.Concurrent;
+using System.IO.Compression;
+using System.Runtime.InteropServices;
+using System.Text;
 
 namespace eve_probe
 {
@@ -39,17 +40,78 @@ namespace eve_probe
         }
     }
 
+    public static class Zlib
+    {
+        public static byte[] ReadAllBytes(this Stream source)
+        {
+            var readBuffer = new byte[4096];
+
+            int totalBytesRead = 0;
+            int bytesRead;
+            try
+            {
+                while ((bytesRead = source.Read(readBuffer, totalBytesRead, readBuffer.Length - totalBytesRead)) > 0)
+                {
+                    totalBytesRead += bytesRead;
+
+                    if (totalBytesRead == readBuffer.Length)
+                    {
+                        int nextByte = source.ReadByte();
+                        if (nextByte != -1)
+                        {
+                            var temp = new byte[readBuffer.Length * 2];
+                            Buffer.BlockCopy(readBuffer, 0, temp, 0, readBuffer.Length);
+                            Buffer.SetByte(temp, totalBytesRead, (byte)nextByte);
+                            readBuffer = temp;
+                            totalBytesRead++;
+                        }
+                    }
+                }
+
+                byte[] buffer = readBuffer;
+                if (readBuffer.Length != totalBytesRead)
+                {
+                    buffer = new byte[totalBytesRead];
+                    Buffer.BlockCopy(readBuffer, 0, buffer, 0, totalBytesRead);
+                }
+                return buffer;
+            }
+            catch (Exception)
+            {
+            }
+            return null;
+        }
+
+        public static byte[] Decompress(byte[] input)
+        {
+            if (input.Length < 3)
+            {
+                return null;
+            }
+            // two bytes shaved off (zlib header)
+            var sourceStream = new MemoryStream(input, 2, input.Length - 2);
+            var stream = new DeflateStream(sourceStream, CompressionMode.Decompress);
+            if (stream == null)
+            {
+                return null;
+            }
+            return stream.ReadAllBytes();
+        }
+    }
+
     public class Packet
     {
         public int nr { get; set; }
         public string direction { get; set; }
         public string type { get; set; }
-        public DateTime timestamp { get; set; }
+        public string method { get; set; }
+        //public DateTime timestamp { get; set; }
 
         public byte[] rawData { set; get; }
-        public byte[] cryptedData { set; get; }
+        //public byte[] cryptedData { set; get; }
 
-        public PyRep PyObject { set; get; }
+        //public PyRep PyObject { set; get; }
+        //public PyPacket PyPacket { set; get; }
         public string objectText { set; get; }
     }
 
@@ -58,7 +120,9 @@ namespace eve_probe
         private MainWindowModel viewModel;
         private int packets = 0;
         private bool appClosing = false;
+        private bool pythonLoaded = false;
         public static ConcurrentQueue<Tuple<bool, byte[], byte[]>> Queue = new ConcurrentQueue<Tuple<bool, byte[], byte[]>>();
+        public static ConcurrentQueue<string> EncodeQueue = new ConcurrentQueue<string>();
 
         public const byte HeaderByte = 0x7E;
         // not a real magic since zlib just doesn't include one..
@@ -78,26 +142,62 @@ namespace eve_probe
             InitializeComponent();
 
             // scintilla
-            objectView.Lexer = Lexer.Json;
+            objectView.Lexer = Lexer.Python;
             objectView.StyleResetDefault();
             objectView.Styles[ScintillaNET.Style.Default].Font = "Consolas";
             objectView.Styles[ScintillaNET.Style.Default].Weight = 900;
             objectView.Styles[ScintillaNET.Style.Default].Size = 10;
             objectView.StyleClearAll();
-            objectView.Styles[ScintillaNET.Style.Json.Number].ForeColor = ColorTranslator.FromHtml("#204070");
-            objectView.Styles[ScintillaNET.Style.Json.Operator].ForeColor = ColorTranslator.FromHtml("#006633");
-            objectView.Styles[ScintillaNET.Style.Json.PropertyName].ForeColor = ColorTranslator.FromHtml("#007050");
-            objectView.Styles[ScintillaNET.Style.Json.String].ForeColor = ColorTranslator.FromHtml("#0050b0");
-            injectorJSONView.Lexer = Lexer.Json;
+            objectView.Styles[ScintillaNET.Style.Python.Default].ForeColor = Color.FromArgb(0x80, 0x80, 0x80);
+            objectView.Styles[ScintillaNET.Style.Python.CommentLine].ForeColor = Color.FromArgb(0x00, 0x7F, 0x00);
+            objectView.Styles[ScintillaNET.Style.Python.CommentLine].Italic = true;
+            objectView.Styles[ScintillaNET.Style.Python.Number].ForeColor = Color.FromArgb(0x00, 0x7F, 0x7F);
+            objectView.Styles[ScintillaNET.Style.Python.String].ForeColor = Color.FromArgb(0x7F, 0x00, 0x7F);
+            objectView.Styles[ScintillaNET.Style.Python.Character].ForeColor = Color.FromArgb(0x7F, 0x00, 0x7F);
+            objectView.Styles[ScintillaNET.Style.Python.Word].ForeColor = Color.FromArgb(0x00, 0x00, 0x7F);
+            objectView.Styles[ScintillaNET.Style.Python.Word].Bold = true;
+            objectView.Styles[ScintillaNET.Style.Python.Triple].ForeColor = Color.FromArgb(0x7F, 0x00, 0x00);
+            objectView.Styles[ScintillaNET.Style.Python.TripleDouble].ForeColor = Color.FromArgb(0x7F, 0x00, 0x00);
+            objectView.Styles[ScintillaNET.Style.Python.ClassName].ForeColor = Color.FromArgb(0x00, 0x00, 0xFF);
+            objectView.Styles[ScintillaNET.Style.Python.ClassName].Bold = true;
+            objectView.Styles[ScintillaNET.Style.Python.DefName].ForeColor = Color.FromArgb(0x00, 0x7F, 0x7F);
+            objectView.Styles[ScintillaNET.Style.Python.DefName].Bold = true;
+            objectView.Styles[ScintillaNET.Style.Python.Operator].Bold = true;
+            objectView.Styles[ScintillaNET.Style.Python.CommentBlock].ForeColor = Color.FromArgb(0x7F, 0x7F, 0x7F);
+            objectView.Styles[ScintillaNET.Style.Python.CommentBlock].Italic = true;
+            objectView.Styles[ScintillaNET.Style.Python.StringEol].ForeColor = Color.FromArgb(0x00, 0x00, 0x00);
+            objectView.Styles[ScintillaNET.Style.Python.StringEol].BackColor = Color.FromArgb(0xE0, 0xC0, 0xE0);
+            objectView.Styles[ScintillaNET.Style.Python.StringEol].FillLine = true;
+            objectView.Styles[ScintillaNET.Style.Python.Word2].ForeColor = Color.FromArgb(0x40, 0x70, 0x90);
+            objectView.Styles[ScintillaNET.Style.Python.Decorator].ForeColor = Color.FromArgb(0x80, 0x50, 0x00);
+            injectorJSONView.Lexer = Lexer.Python;
             injectorJSONView.StyleResetDefault();
             injectorJSONView.Styles[ScintillaNET.Style.Default].Font = "Consolas";
             injectorJSONView.Styles[ScintillaNET.Style.Default].Weight = 900;
             injectorJSONView.Styles[ScintillaNET.Style.Default].Size = 10;
             injectorJSONView.StyleClearAll();
-            injectorJSONView.Styles[ScintillaNET.Style.Json.Number].ForeColor = ColorTranslator.FromHtml("#204070");
-            injectorJSONView.Styles[ScintillaNET.Style.Json.Operator].ForeColor = ColorTranslator.FromHtml("#006633");
-            injectorJSONView.Styles[ScintillaNET.Style.Json.PropertyName].ForeColor = ColorTranslator.FromHtml("#007050");
-            injectorJSONView.Styles[ScintillaNET.Style.Json.String].ForeColor = ColorTranslator.FromHtml("#0050b0");
+            injectorJSONView.Styles[ScintillaNET.Style.Python.Default].ForeColor = Color.FromArgb(0x80, 0x80, 0x80);
+            injectorJSONView.Styles[ScintillaNET.Style.Python.CommentLine].ForeColor = Color.FromArgb(0x00, 0x7F, 0x00);
+            injectorJSONView.Styles[ScintillaNET.Style.Python.CommentLine].Italic = true;
+            injectorJSONView.Styles[ScintillaNET.Style.Python.Number].ForeColor = Color.FromArgb(0x00, 0x7F, 0x7F);
+            injectorJSONView.Styles[ScintillaNET.Style.Python.String].ForeColor = Color.FromArgb(0x7F, 0x00, 0x7F);
+            injectorJSONView.Styles[ScintillaNET.Style.Python.Character].ForeColor = Color.FromArgb(0x7F, 0x00, 0x7F);
+            injectorJSONView.Styles[ScintillaNET.Style.Python.Word].ForeColor = Color.FromArgb(0x00, 0x00, 0x7F);
+            injectorJSONView.Styles[ScintillaNET.Style.Python.Word].Bold = true;
+            injectorJSONView.Styles[ScintillaNET.Style.Python.Triple].ForeColor = Color.FromArgb(0x7F, 0x00, 0x00);
+            injectorJSONView.Styles[ScintillaNET.Style.Python.TripleDouble].ForeColor = Color.FromArgb(0x7F, 0x00, 0x00);
+            injectorJSONView.Styles[ScintillaNET.Style.Python.ClassName].ForeColor = Color.FromArgb(0x00, 0x00, 0xFF);
+            injectorJSONView.Styles[ScintillaNET.Style.Python.ClassName].Bold = true;
+            injectorJSONView.Styles[ScintillaNET.Style.Python.DefName].ForeColor = Color.FromArgb(0x00, 0x7F, 0x7F);
+            injectorJSONView.Styles[ScintillaNET.Style.Python.DefName].Bold = true;
+            injectorJSONView.Styles[ScintillaNET.Style.Python.Operator].Bold = true;
+            injectorJSONView.Styles[ScintillaNET.Style.Python.CommentBlock].ForeColor = Color.FromArgb(0x7F, 0x7F, 0x7F);
+            injectorJSONView.Styles[ScintillaNET.Style.Python.CommentBlock].Italic = true;
+            injectorJSONView.Styles[ScintillaNET.Style.Python.StringEol].ForeColor = Color.FromArgb(0x00, 0x00, 0x00);
+            injectorJSONView.Styles[ScintillaNET.Style.Python.StringEol].BackColor = Color.FromArgb(0xE0, 0xC0, 0xE0);
+            injectorJSONView.Styles[ScintillaNET.Style.Python.StringEol].FillLine = true;
+            injectorJSONView.Styles[ScintillaNET.Style.Python.Word2].ForeColor = Color.FromArgb(0x40, 0x70, 0x90);
+            injectorJSONView.Styles[ScintillaNET.Style.Python.Decorator].ForeColor = Color.FromArgb(0x80, 0x50, 0x00);
 
             // allow hex free-edit @ injector
             injectorHexView.ByteProvider = new DynamicByteProvider(new byte[0]);
@@ -116,14 +216,19 @@ namespace eve_probe
                     nr = packets++,
                     direction = outgoing ? "Out" : "In",
                     type = "Unknown",
-                    timestamp = DateTime.Now,
+                    method = "",
+                    //timestamp = DateTime.Now,
                     objectText = "",
                     rawData = raw,
-                    cryptedData = crypted,
+                    //cryptedData = crypted,
                 };
 
+                // dump data
+                //File.WriteAllBytes("dump\\" + packet.nr, packet.rawData);
+
                 // unmarshal data
-                new Thread(() => unmarshal(packet)).Start();
+                //new Thread(() => unmarshal(packet)).Start();
+                unmarshal(packet);
             }
         }
 
@@ -139,6 +244,17 @@ namespace eve_probe
         // read from advapi captures
         private void SniffSniff()
         {
+            while(!pythonLoaded)
+            {
+                Thread.Sleep(500);
+            }
+
+            Py_Initialize();
+            //var gil = PyGILState_Ensure();
+            var marshler = File.ReadAllText("marshal.py");
+            PyRun_SimpleString(marshler);
+            //PyGILState_Release(gil);
+
             while (!appClosing)
             {
                 Tuple<bool, byte[], byte[]> item = null;
@@ -147,8 +263,62 @@ namespace eve_probe
                     processRawPacket(item.Item1, item.Item2, item.Item3);
                 }
 
+                string py_obj_str = null;
+                while (EncodeQueue.TryDequeue(out py_obj_str))
+                {
+                    marshal(py_obj_str);
+                }
+
                 Thread.Sleep(500);
             }
+        }
+
+        private byte[] marshal(string objTxt)
+        {
+            if (objTxt.Length > 0 && pythonLoaded)
+            {
+                //var gil = PyGILState_Ensure();
+                // Remarshal
+                var main = PyImport_AddModule("__main__");
+                var save = PyObject_GetAttrString(main, "save");
+                //var bText = objTxt.ToCharArray();
+                //var uText = Marshal.AllocHGlobal(bText.Length);
+                //Marshal.Copy(bText, 0, uText, bText.Length);
+                var data = PyObject_CallFunction(save, "s#", __arglist(Marshal.StringToHGlobalAnsi(objTxt), objTxt.Length));
+                //Marshal.FreeHGlobal(uText);
+
+                if (main == IntPtr.Zero) MessageBox.Show("main null");
+                if (save == IntPtr.Zero) MessageBox.Show("save null");
+                if (data == IntPtr.Zero) MessageBox.Show("data null");
+
+                //var uData = PyString_AsString(data);
+                //var size = PyString_Size(data);
+
+                //if (uData == IntPtr.Zero) MessageBox.Show("uData null");
+                //if (size == -1) MessageBox.Show("size -1");
+
+                //*
+                var uData = PyString_AsString(data);
+                var size = PyString_Size(data);
+                var encoded = new byte[size];
+                Marshal.Copy(uData, encoded, 0, size);
+
+                inMain(() =>
+                {
+                    using (var ms = new MemoryStream())
+                    {
+                        using (var b = new BinaryWriter(ms))
+                        {
+                            b.Write(encoded);
+                            injectorHexView.ByteProvider = new DynamicByteProvider(ms.ToArray());
+                        }
+                    }
+                });
+                //*/
+                //PyGILState_Release(gil);
+            }
+
+            return null;
         }
 
         // Decode EVE's packets
@@ -201,33 +371,19 @@ namespace eve_probe
             }
             else
             {
-                try
+                if (pythonLoaded)
                 {
-                    Unmarshal un = new Unmarshal();
-                    PyRep obj = un.Process(data);
-
-                    // Attempt cast to PyPacket
-                    /*
-                    if (obj.Type == PyObjectType.ObjectData)
-                    {
-                        PyObject packetData = obj as PyObject;
-                        try
-                        {
-                            obj = new PyPacket(packetData);
-                        }
-                        catch { }
-                    }
-                    //*/
-
-                    packet.PyObject = obj;
-                    //packet.objectText = PrettyPrinter.Print(obj);
-                    packet.objectText = JSON_PrettyPrinter.Process(obj.dumpJSON());
+                    // Demarshal
+                    //var gil = PyGILState_Ensure();
+                    var main = PyImport_AddModule("__main__");
+                    var load = PyObject_GetAttrString(main, "load");
+                    IntPtr uData = Marshal.AllocHGlobal(data.Length);
+                    Marshal.Copy(data, 0, uData, data.Length);
+                    var text = PyObject_CallFunction(load, "s#", __arglist(uData, data.Length));
+                    Marshal.FreeHGlobal(uData);
+                    packet.objectText = Marshal.PtrToStringAnsi(PyString_AsString(text));
+                    //PyGILState_Release(gil);
                 }
-                catch (Exception e)
-                {
-                    packet.objectText = "Error while decoding\r\n\r\n" + e.Message;
-                }
-                
             }
 
             // send to UI
@@ -251,8 +407,8 @@ namespace eve_probe
                 // go Hex! go!
                 if(packet.rawData != null)
                     rawHexView.ByteProvider = new DynamicByteProvider(packet.rawData);
-                if (packet.cryptedData != null)
-                    cryptedHexView.ByteProvider = new DynamicByteProvider(packet.cryptedData);
+                //if (packet.cryptedData != null)
+                //    cryptedHexView.ByteProvider = new DynamicByteProvider(packet.cryptedData);
 
                 // what the hacks scyntilla?
                 objectView.ReadOnly = false;
@@ -271,16 +427,9 @@ namespace eve_probe
             {
                 var packet = (Packet)packetList.SelectedItem;
 
-                using (var ms = new MemoryStream())
-                {
-                    using (var b = new BinaryWriter(ms))
-                    {
-                        packet.PyObject.Encode(b);
-                        injectorHexView.ByteProvider = new DynamicByteProvider(ms.ToArray());
-                        injectorJSONView.Text = objectView.Text;
-                        tabControl.SelectedIndex = 1;
-                    }
-                }
+                injectorHexView.ByteProvider = null;
+                injectorJSONView.Text = objectView.Text;
+                tabControl.SelectedIndex = 1;
             }
         }
 
@@ -300,22 +449,16 @@ namespace eve_probe
 
         private void encode_Click(object sender, RoutedEventArgs e)
         {
-            dynamic data = Json.Decode(injectorJSONView.Text);
+            EncodeQueue.Enqueue(injectorJSONView.Text);
+        }
 
-            /*
-            var js = new JavaScriptSerializer();
-            var obj = js.Deserialize<PyRep>(viewModel.injectorJSON);
-
-            using (var ms = new MemoryStream())
+        private void dump_Click(object sender, RoutedEventArgs e)
+        {
+            if (packetList.SelectedItem != null)
             {
-                using (var b = new BinaryWriter(ms))
-                {
-                    obj.Encode(b);
-                    viewModel.injectorHex = Hex.PrettyPrint(ms.ToArray());
-                    injectorTabs.SelectedIndex = 1;
-                }
+                var packet = (Packet)packetList.SelectedItem;
+                File.WriteAllBytes("dump.bin", packet.rawData);
             }
-            */
         }
 
 
@@ -353,6 +496,36 @@ namespace eve_probe
             }
         }
 
+        [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Ansi)]
+        static extern IntPtr LoadLibrary([MarshalAs(UnmanagedType.LPStr)]string lpFileName);
+
+        [DllImport("python27", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+        static extern void Py_Initialize();
+
+        [DllImport("python27", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+        static extern Int32 PyRun_SimpleString([MarshalAs(UnmanagedType.LPStr)]string str);
+
+        [DllImport("python27", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+        static extern IntPtr PyImport_AddModule([MarshalAs(UnmanagedType.LPStr)]string name);
+
+        [DllImport("python27", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+        static extern IntPtr PyObject_GetAttrString(IntPtr module, [MarshalAs(UnmanagedType.LPStr)]string name);
+
+        [DllImport("python27", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+        static extern IntPtr PyObject_CallFunction(IntPtr callable, [MarshalAs(UnmanagedType.LPStr)]string format, __arglist);
+
+        [DllImport("python27", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+        static extern IntPtr PyString_AsString(IntPtr pyStr);
+
+        [DllImport("python27", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+        static extern int PyString_Size(IntPtr pyStr);
+
+        //[DllImport("python27", CallingConvention = CallingConvention.Cdecl)]
+        //static extern IntPtr PyGILState_Ensure();
+
+        //[DllImport("python27", CallingConvention = CallingConvention.Cdecl)]
+        //static extern void PyGILState_Release(IntPtr gstate);
+
         private void hook_Click(object sender, RoutedEventArgs e)
         {
             String ChannelName = null;
@@ -378,6 +551,19 @@ namespace eve_probe
                     ChannelName);
 
                 //MessageBox.Show("Injected to process " + TargetPID);
+
+                // SharedCache\tq
+                var path = Path.GetDirectoryName(Path.GetDirectoryName(procs[0].MainModule.FileName));
+                Environment.SetEnvironmentVariable("PYTHONPATH", path + "\\code.ccp;" + path + "\\bin");
+
+                if (LoadLibrary(path + "\\bin\\python27.dll") != IntPtr.Zero)
+                {
+                    pythonLoaded = true;
+                }
+                else
+                {
+                    MessageBox.Show("Failed to load " + path + "\\bin\\python27.dll");
+                }
             }
             catch (Exception ExtInfo)
             {

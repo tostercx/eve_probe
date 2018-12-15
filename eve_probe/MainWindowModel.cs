@@ -9,6 +9,7 @@ namespace eve_probe
         public ObservableCollection<Packet> packets { get; set; }
 
         public bool copyEnabled { get; set; } = false;
+        public bool hookEnabled { get; set; } = true;
 
         public string pauseText { get; set; } = "Pause";
         public bool isPaused { get; set; } = false;

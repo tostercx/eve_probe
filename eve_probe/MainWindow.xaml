@@ -15,10 +15,10 @@
     <Grid>
         <DataGrid x:Name="packetList" Margin="10,10,0,10.4" IsReadOnly="True" ItemsSource="{Binding packets}" AutoGenerateColumns="False" SelectionMode="Single" SelectionUnit="FullRow" CanUserAddRows="False" HorizontalAlignment="Left" Width="309" SelectionChanged="packetList_SelectionChanged">
             <DataGrid.Columns>
-                <DataGridTextColumn Width="50" Header="#" Binding="{Binding Path=nr}" CanUserSort="True" IsReadOnly="True"/>
+                <DataGridTextColumn Width="50" Header="#" Binding="{Binding Path=nr}" CanUserSort="True" IsReadOnly="True" SortDirection="Ascending"/>
                 <DataGridTextColumn Width="30" Header="Dir" Binding="{Binding Path=direction}" CanUserSort="True" IsReadOnly="True"/>
                 <DataGridTextColumn Width="70" Header="Type" Binding="{Binding Path=type}" CanUserSort="True" IsReadOnly="True"/>
-                <DataGridTextColumn Width="130" Header="Timestamp" Binding="{Binding Path=timestamp}" CanUserSort="True" IsReadOnly="True"/>
+                <DataGridTextColumn Width="130" Header="Method" Binding="{Binding Path=method}" CanUserSort="True" IsReadOnly="True"/>
             </DataGrid.Columns>
         </DataGrid>
         <TabControl x:Name="tabControl" Margin="324,10,10,10">
@@ -26,7 +26,8 @@
                 <Grid>
                     <Button x:Name="pause" Content="{Binding pauseText}" Margin="10,10,0,0" Height="25" VerticalAlignment="Top" Click="pause_Click" HorizontalAlignment="Left" Width="67"/>
                     <Button x:Name="clear" Content="Clear" Margin="82,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="clear_Click"/>
-                    <Button x:Name="hook" Content="Hook EVE" Margin="154,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="hook_Click"/>
+                    <Button x:Name="hook" IsEnabled="{Binding hookEnabled}" Content="Hook EVE" Margin="154,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="hook_Click"/>
+                    <Button x:Name="dump" IsEnabled="{Binding hookEnabled}" Content="Dump Bin" Margin="226,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="dump_Click"/>
                     <Button x:Name="toInjector" IsEnabled="{Binding copyEnabled}" Content="Copy to injector" Margin="0,10,10,0" HorizontalAlignment="Right" Width="109" Height="25" VerticalAlignment="Top" Click="toInjector_Click"/>
                     <TabControl x:Name="captureView" Margin="0,40,0.4,-0.4">
                         <TabItem Header="JSON">

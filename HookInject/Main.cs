@@ -8,6 +8,8 @@ namespace HookInject
     public class Main : EasyHook.IEntryPoint
     {
         eve_probe.HookInterface Interface;
+        LocalHook CryptEncryptHook = null;
+        LocalHook CryptDecryptHook = null;
 
         public Main(
             RemoteHooking.IContext InContext,
@@ -26,15 +28,17 @@ namespace HookInject
             // install hook...
             try
             {
-                LocalHook.Create(
+                CryptEncryptHook = LocalHook.Create(
                     LocalHook.GetProcAddress("advapi32.dll", "CryptEncrypt"),
                     new DCryptEncrypt(CryptEncrypt_Hooked),
-                    this).ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+                    this);
+                CryptEncryptHook.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
 
-                LocalHook.Create(
+                CryptDecryptHook = LocalHook.Create(
                     LocalHook.GetProcAddress("advapi32.dll", "CryptDecrypt"),
                     new DCryptDecrypt(CryptDecrypt_Hooked),
-                    this).ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+                    this);
+                CryptDecryptHook.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             }
             catch (Exception ExtInfo)
             {
@@ -93,9 +97,9 @@ namespace HookInject
                     This.Interface.Enqueue(new Tuple<bool, byte[], byte[]>(true, rawData, cryptedData));
                 }
             }
-            catch(Exception ExtInfo)
+            catch //(Exception ExtInfo)
             {
-                System.Windows.Forms.MessageBox.Show(ExtInfo.ToString());
+                //System.Windows.Forms.MessageBox.Show(ExtInfo.ToString());
             }
             return ret;
         }
@@ -130,9 +134,9 @@ namespace HookInject
                     This.Interface.Enqueue(new Tuple<bool, byte[], byte[]>(false, rawData, cryptedData));
                 }
             }
-            catch (Exception ExtInfo)
+            catch //(Exception ExtInfo)
             {
-                System.Windows.Forms.MessageBox.Show(ExtInfo.ToString());
+                //System.Windows.Forms.MessageBox.Show(ExtInfo.ToString());
             }
             return ret;
         }
