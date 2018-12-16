@@ -13,5 +13,7 @@ namespace eve_probe
 
         public string pauseText { get; set; } = "Pause";
         public bool isPaused { get; set; } = false;
+
+        public string logText { get; set; } = "";
     }
 }

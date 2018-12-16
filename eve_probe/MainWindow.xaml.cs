@@ -14,7 +14,7 @@ using System.Diagnostics;
 using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
-using System.Text;
+using System.Windows.Controls;
 
 namespace eve_probe
 {
@@ -22,7 +22,7 @@ namespace eve_probe
     {
         public void IsInstalled(Int32 InClientPID)
         {
-            MessageBox.Show("Hook has been installed in target " + InClientPID + ".\r\n");
+            Log.log("Hook has been installed in target " + InClientPID + ".");
         }
 
         public void Enqueue(Tuple<bool, byte[], byte[]> message)
@@ -43,7 +43,14 @@ namespace eve_probe
 
         public void ReportException(Exception InInfo)
         {
-            MessageBox.Show("The target process has reported an error:\r\n" + InInfo.ToString());
+            Log.log("-- error in target --");
+            Log.log(InInfo.ToString());
+            Log.log("-- /error in target --");
+        }
+
+        public void log(string txt)
+        {
+            Log.log(txt);
         }
 
         public void Ping()
@@ -214,7 +221,13 @@ namespace eve_probe
             // allow hex free-edit @ injector
             injectorHexView.ByteProvider = new DynamicByteProvider(new byte[0]);
 
+            // set log window
+            Log.vm = viewModel;
+            
+            // boot data processing thread
             new Thread(SniffSniff).Start();
+
+            Log.log("-- init complete --");
         }
 
         public void processRawPacket(bool outgoing, byte[] raw, byte[] crypted)
@@ -256,16 +269,19 @@ namespace eve_probe
         // read from advapi captures
         private void SniffSniff()
         {
-            while(!pythonLoaded)
+            while (!pythonLoaded && !appClosing)
             {
                 Thread.Sleep(500);
             }
 
-            Py_Initialize();
-            //var gil = PyGILState_Ensure();
-            var marshler = File.ReadAllText("marshal.py");
-            PyRun_SimpleString(marshler);
-            //PyGILState_Release(gil);
+            if (!appClosing)
+            {
+                Py_Initialize();
+                //var gil = PyGILState_Ensure();
+                var marshler = File.ReadAllText("marshal.py");
+                PyRun_SimpleString(marshler);
+                //PyGILState_Release(gil);
+            }
 
             while (!appClosing)
             {
@@ -276,7 +292,7 @@ namespace eve_probe
                 }
 
                 string py_obj_str = null;
-                while (EncodeQueue.TryDequeue(out py_obj_str))
+                if (EncodeQueue.TryDequeue(out py_obj_str))
                 {
                     marshal(py_obj_str);
                 }
@@ -444,6 +460,19 @@ namespace eve_probe
         {
             viewModel.isPaused = !viewModel.isPaused;
             viewModel.pauseText = viewModel.isPaused ? "Unpause" : "Pause";
+        }
+
+        private void log_TextChanged(object sender, RoutedEventArgs e)
+        {
+            TextBox tb = sender as TextBox;
+            if (tb == null)
+            {
+                return;
+            }
+
+            // autoscroll
+            tb.SelectionStart = int.MaxValue;
+            tb.SelectionLength = 0;
         }
 
         private void clear_Click(object sender, RoutedEventArgs e)

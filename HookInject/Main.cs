@@ -2,6 +2,8 @@
 using System.Threading;
 using System.Runtime.InteropServices;
 using EasyHook;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace HookInject
 {
@@ -10,6 +12,7 @@ namespace HookInject
         eve_probe.HookInterface Interface;
         IntPtr ccpSock = IntPtr.Zero;
         IntPtr lastHkey = IntPtr.Zero;
+        List<LocalHook> antiGC = new List<LocalHook>();
 
         public Main(
             RemoteHooking.IContext InContext,
@@ -28,20 +31,23 @@ namespace HookInject
             // install hook...
             try
             {
-                LocalHook.Create(
+                antiGC.Add(LocalHook.Create(
                     LocalHook.GetProcAddress("advapi32.dll", "CryptEncrypt"),
                     new DCryptEncrypt(CryptEncrypt_Hooked),
-                    this).ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+                    this));
+                antiGC.Last().ThreadACL.SetExclusiveACL(new Int32[] { 0 });
 
-                LocalHook.Create(
+                antiGC.Add(LocalHook.Create(
                     LocalHook.GetProcAddress("advapi32.dll", "CryptDecrypt"),
                     new DCryptDecrypt(CryptDecrypt_Hooked),
-                    this).ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+                    this));
+                antiGC.Last().ThreadACL.SetExclusiveACL(new Int32[] { 0 });
 
-                LocalHook.Create(
+                antiGC.Add(LocalHook.Create(
                     LocalHook.GetProcAddress("ws2_32.dll", "WSASend"),
                     new DWSASend(WSASend_Hooked),
-                    this).ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+                    this));
+                antiGC.Last().ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             }
             catch (Exception ExtInfo)
             {
@@ -61,37 +67,31 @@ namespace HookInject
                 {
                     Thread.Sleep(500);
 
-                    var pck = Interface.PollInjectionQueue();
-                    if (pck != null && ccpSock != IntPtr.Zero)
+                    try
+                    { 
+                        var pck = Interface.PollInjectionQueue();
+                        if (pck != null && ccpSock != IntPtr.Zero)
+                        {
+                            var exlen = 256; // Extra space for in place crypt + length header
+                            var wsabuf = Marshal.AllocHGlobal(pck.Length + exlen);
+                            IntPtr plen = Marshal.AllocHGlobal(4);
+                            Marshal.WriteInt32(plen, pck.Length);
+
+                            var wsaData = IntPtr.Add(wsabuf, 4); // Add space for length header
+                            Marshal.Copy(pck, 0, wsaData, pck.Length);
+                            CryptEncrypt(lastHkey, IntPtr.Zero, 1, 0, wsaData, plen, (uint)(pck.Length + exlen - 4));
+                            var len  = Marshal.ReadInt32(plen);
+                            Marshal.WriteInt32(wsabuf, Marshal.ReadInt32(plen)); // Wtf MS, no Marshal.Copy for IntPtr 2 IntPtr?
+
+                            send(ccpSock, wsabuf, len + 4, 0);
+
+                            Marshal.FreeHGlobal(plen);
+                            Marshal.FreeHGlobal(wsabuf);
+                        }
+                    }
+                    catch (Exception ExtInfo)
                     {
-                        //var mod = pck.Length % 8;
-                        //var pad = mod > 0 ? 8 - mod : 0;
-                        var exlen = 256; // Extra space for in place crypt + length header
-                        //var len = sizeof(int) + pck.Length + pad;
-                        var wsabuf = Marshal.AllocHGlobal(pck.Length + exlen);
-                        IntPtr plen = Marshal.AllocHGlobal(4);
-                        Marshal.WriteInt32(plen, pck.Length);
-
-                        var wsaData = IntPtr.Add(wsabuf, 4); // Add space for length header
-                        Marshal.Copy(pck, 0, wsaData, pck.Length);
-                        CryptEncrypt(lastHkey, IntPtr.Zero, 1, 0, wsaData, plen, (uint)(pck.Length + exlen - 4));
-                        var len  = Marshal.ReadInt32(plen);
-                        Marshal.WriteInt32(wsabuf, Marshal.ReadInt32(plen)); // Wtf MS, no Marshal.Copy for IntPtr 2 IntPtr?
-
-                        //System.Windows.Forms.MessageBox.Show(ret.ToString() + " " + pck.Length + " " + Marshal.ReadInt32(plen));
-
-                        //Marshal.WriteInt32(wsabuf, 0, pck.Length);
-                        //Marshal.Copy(pck, 0, IntPtr.Add(wsabuf, 4), pck.Length);
-                        //Marshal.WriteInt32(wsabuf, 0, IntPtr.Add(wsabuf, 4).ToInt32());
-
-                        //var ret = WSASend(ccpSock, wsabuf, 1, plen, 0, IntPtr.Zero, IntPtr.Zero);
-                        send(ccpSock, wsabuf, len + 4, 0);
-
-                        //var err = WSAGetLastError();
-                        //System.Windows.Forms.MessageBox.Show(len.ToString() + " " + ret.ToString() + " " + err.ToString());
-
-                        Marshal.FreeHGlobal(plen);
-                        Marshal.FreeHGlobal(wsabuf);
+                        Interface.ReportException(ExtInfo);
                     }
 
                     Interface.Ping();
@@ -122,23 +122,30 @@ namespace HookInject
 
         private int WSASend_Hooked(IntPtr s, IntPtr lpBuffers, uint dwBufferCount, IntPtr lpNumberOfBytesSent, uint dwFlags, IntPtr lpOverlapped, IntPtr lpCompletionRoutine)
         {
-            if (ccpSock == IntPtr.Zero)
+            Main This = (Main)HookRuntimeInfo.Callback;
+            try
             {
-                int len = 16;
-                var name = Marshal.AllocHGlobal(len);
-                var plen = Marshal.AllocHGlobal(sizeof(int));
-                Marshal.WriteInt32(plen, len);
-                var ret = getpeername(s, name, plen);
-
-                if ((uint)Marshal.ReadInt32(name, 4) == 3357732183) // 87.237.34.200 (reversed cause machine order...)
+                if (ccpSock == IntPtr.Zero)
                 {
-                    ccpSock = s;
+                    int len = 16;
+                    var name = Marshal.AllocHGlobal(len);
+                    var plen = Marshal.AllocHGlobal(sizeof(int));
+                    Marshal.WriteInt32(plen, len);
+                    var ret = getpeername(s, name, plen);
+
+                    if ((uint)Marshal.ReadInt32(name, 4) == 3357732183) // 87.237.34.200 (reversed cause machine order...)
+                    {
+                        ccpSock = s;
+                    }
+
+                    Marshal.FreeHGlobal(name);
+                    Marshal.FreeHGlobal(plen);
                 }
-
-                Marshal.FreeHGlobal(name);
-                Marshal.FreeHGlobal(plen);
             }
-
+            catch (Exception ExtInfo)
+            {
+                This.Interface.ReportException(ExtInfo);
+            }
             return WSASend(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
         }
 
@@ -153,9 +160,9 @@ namespace HookInject
         private bool CryptEncrypt_Hooked(IntPtr hKey, IntPtr hHash, int Final, uint dwFlags, [In] [Out] IntPtr pbData, [In] [Out] IntPtr pdwDataLen, uint dwBufLen)
         {
             bool ret = false;
+            Main This = (Main)HookRuntimeInfo.Callback;
             try
             {
-                Main This = (Main)HookRuntimeInfo.Callback;
                 var size = Marshal.ReadInt32(pdwDataLen);
                 byte[] rawData = new byte[size];
                 bool doCopy = (size != 0 && pbData != IntPtr.Zero);
@@ -170,15 +177,16 @@ namespace HookInject
 
                 if (doCopy)
                 {
+                    size = Marshal.ReadInt32(pdwDataLen);
                     byte[] cryptedData = new byte[size];
                     Marshal.Copy(pbData, cryptedData, 0, size);
 
                     This.Interface.Enqueue(new Tuple<bool, byte[], byte[]>(true, rawData, cryptedData));
                 }
             }
-            catch //(Exception ExtInfo)
+            catch (Exception ExtInfo)
             {
-                //System.Windows.Forms.MessageBox.Show(ExtInfo.ToString());
+                This.Interface.ReportException(ExtInfo);
             }
             return ret;
         }
@@ -194,9 +202,9 @@ namespace HookInject
         static bool CryptDecrypt_Hooked(IntPtr hKey, IntPtr hHash, int Final, uint dwFlags, [In] [Out] IntPtr pbData, [In] [Out] IntPtr pdwDataLen)
         {
             bool ret = false;
+            Main This = (Main)HookRuntimeInfo.Callback;
             try
             {
-                Main This = (Main)HookRuntimeInfo.Callback;
                 var size = Marshal.ReadInt32(pdwDataLen);
                 byte[] cryptedData = new byte[size];
                 bool doCopy = (size != 0 && pbData != IntPtr.Zero);
@@ -208,15 +216,16 @@ namespace HookInject
 
                 if (doCopy)
                 {
+                    size = Marshal.ReadInt32(pdwDataLen);
                     byte[] rawData = new byte[size];
                     Marshal.Copy(pbData, rawData, 0, size);
 
                     This.Interface.Enqueue(new Tuple<bool, byte[], byte[]>(false, rawData, cryptedData));
                 }
             }
-            catch //(Exception ExtInfo)
+            catch (Exception ExtInfo)
             {
-                //System.Windows.Forms.MessageBox.Show(ExtInfo.ToString());
+                This.Interface.ReportException(ExtInfo);
             }
             return ret;
         }
