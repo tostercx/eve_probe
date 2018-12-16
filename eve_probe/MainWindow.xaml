@@ -71,15 +71,18 @@
                         </Grid>
                     </TabItem>
                     <TabItem Header="Hex">
-                        <WindowsFormsHost>
-                            <hexbox:HexBox x:Name="injectorHexView"
-                                              StringViewVisible="True" 
-                                              UseFixedBytesPerLine="True" 
-                                              VScrollBarVisible="True" 
-                                              LineInfoVisible="True" 
-                                              ReadOnly="False"
-                                              ColumnInfoVisible="True" />
-                        </WindowsFormsHost>
+                        <Grid>
+                            <Button x:Name="inject" Content="Inject" Margin="10,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="inject_Click"/>
+                            <WindowsFormsHost Margin="0,40,0,0">
+                                <hexbox:HexBox x:Name="injectorHexView"
+                                                  StringViewVisible="True" 
+                                                  UseFixedBytesPerLine="True" 
+                                                  VScrollBarVisible="True" 
+                                                  LineInfoVisible="True" 
+                                                  ReadOnly="False"
+                                                  ColumnInfoVisible="True" />
+                            </WindowsFormsHost>
+                        </Grid>
                     </TabItem>
                 </TabControl>
             </TabItem>

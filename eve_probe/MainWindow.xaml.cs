@@ -30,6 +30,17 @@ namespace eve_probe
             MainWindow.Queue.Enqueue(message);
         }
 
+        public byte[] PollInjectionQueue()
+        {
+            byte[] pck = null;
+            if (MainWindow.InjectQueue.TryDequeue(out pck))
+            {
+                return pck;
+            }
+
+            return null;
+        }
+
         public void ReportException(Exception InInfo)
         {
             MessageBox.Show("The target process has reported an error:\r\n" + InInfo.ToString());
@@ -108,7 +119,7 @@ namespace eve_probe
         //public DateTime timestamp { get; set; }
 
         public byte[] rawData { set; get; }
-        //public byte[] cryptedData { set; get; }
+        public byte[] cryptedData { set; get; }
 
         //public PyRep PyObject { set; get; }
         //public PyPacket PyPacket { set; get; }
@@ -123,6 +134,7 @@ namespace eve_probe
         private bool pythonLoaded = false;
         public static ConcurrentQueue<Tuple<bool, byte[], byte[]>> Queue = new ConcurrentQueue<Tuple<bool, byte[], byte[]>>();
         public static ConcurrentQueue<string> EncodeQueue = new ConcurrentQueue<string>();
+        public static ConcurrentQueue<byte[]> InjectQueue = new ConcurrentQueue<byte[]>();
 
         public const byte HeaderByte = 0x7E;
         // not a real magic since zlib just doesn't include one..
@@ -220,7 +232,7 @@ namespace eve_probe
                     //timestamp = DateTime.Now,
                     objectText = "",
                     rawData = raw,
-                    //cryptedData = crypted,
+                    cryptedData = crypted,
                 };
 
                 // dump data
@@ -359,15 +371,10 @@ namespace eve_probe
                 }
             }
 
-            // Is this a proper python serial stream?
             if (data[0] != HeaderByte)
             {
-                // No, is this a python file?
-                // I have no idea what to do with it
                 if (data[0] == PythonMarker)
                     packet.objectText = "Python file";
-                else if(data[0] != ZlibMarker)
-                    packet.objectText = "Unknown data type";
             }
             else
             {
@@ -407,8 +414,8 @@ namespace eve_probe
                 // go Hex! go!
                 if(packet.rawData != null)
                     rawHexView.ByteProvider = new DynamicByteProvider(packet.rawData);
-                //if (packet.cryptedData != null)
-                //    cryptedHexView.ByteProvider = new DynamicByteProvider(packet.cryptedData);
+                if (packet.cryptedData != null)
+                    cryptedHexView.ByteProvider = new DynamicByteProvider(packet.cryptedData);
 
                 // what the hacks scyntilla?
                 objectView.ReadOnly = false;
@@ -450,6 +457,11 @@ namespace eve_probe
         private void encode_Click(object sender, RoutedEventArgs e)
         {
             EncodeQueue.Enqueue(injectorJSONView.Text);
+        }
+
+        private void inject_Click(object sender, RoutedEventArgs e)
+        {
+            InjectQueue.Enqueue(((DynamicByteProvider)injectorHexView.ByteProvider).Bytes.ToArray());
         }
 
         private void dump_Click(object sender, RoutedEventArgs e)
