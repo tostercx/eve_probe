@@ -96,15 +96,33 @@ def load(buf):
     try:
         obj = blue.marshal.Load(buf)
         obj = serialize(obj)
+        
         dest = obj.get('destination', {})
         meth = dest.get('broadcastID', dest.get('service', ''))
+        meth = '' if not meth else str(meth)
+        methex = ''
+        
+        try:
+            methex = obj['payload'][1]['__content__'][1]
+            if methex.__class__.__name__ == 'str':
+                meth += ('.' if len(meth) else '') + methex
+        except:
+            pass
+        
+        callID = obj.get('destination', {}).get('callID', '')
+        if not callID:
+            callID = obj.get('source', {}).get('callID', '')
+        callID = '' if not callID else str(callID)
+        
         return (
             pformat(obj),
             obj['__class__'].split('.')[-1],
-            str(meth),
+            meth,
+            callID,
             '')
     except:
         return (
+            '',
             '',
             '',
             '',

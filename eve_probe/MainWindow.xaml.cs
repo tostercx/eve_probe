@@ -121,6 +121,7 @@ namespace eve_probe
         public string direction { get; set; }
         public string type { get; set; }
         public string method { get; set; }
+        public string callID { get; set; }
 
         public byte[] rawData { set; get; }
         public byte[] cryptedData { set; get; }
@@ -235,6 +236,7 @@ namespace eve_probe
                     direction = outgoing ? "Out" : "In",
                     type = "Unknown",
                     method = "",
+                    callID = "",
                     objectText = "",
                     rawData = raw,
                     cryptedData = crypted,
@@ -402,6 +404,10 @@ namespace eve_probe
                             packet.method = Marshal.PtrToStringAnsi(PyString_AsString(text));
 
                         text = PyTuple_GetItem(tuple, 3);
+                        if (text != IntPtr.Zero && PyString_Size(text) > 0)
+                            packet.callID = Marshal.PtrToStringAnsi(PyString_AsString(text));
+
+                        text = PyTuple_GetItem(tuple, 4);
                         if (text != IntPtr.Zero && PyString_Size(text) > 0)
                         {
                             Log.log("-- unmarshaling error (packet " + packet.nr + ") --");

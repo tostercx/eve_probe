@@ -23,7 +23,8 @@
                 <DataGridTextColumn Width="50" Header="#" Binding="{Binding Path=nr}" CanUserSort="True" IsReadOnly="True" SortDirection="Ascending"/>
                 <DataGridTextColumn Width="30" Header="Dir" Binding="{Binding Path=direction}" CanUserSort="True" IsReadOnly="True"/>
                 <DataGridTextColumn Width="70" Header="Type" Binding="{Binding Path=type}" CanUserSort="True" IsReadOnly="True"/>
-                <DataGridTextColumn Width="130" Header="Method" Binding="{Binding Path=method}" CanUserSort="True" IsReadOnly="True"/>
+                <DataGridTextColumn Width="30" Header="ID" Binding="{Binding Path=callID}" CanUserSort="True" IsReadOnly="True"/>
+                <DataGridTextColumn Width="200" Header="Method" Binding="{Binding Path=method}" CanUserSort="True" IsReadOnly="True"/>
             </DataGrid.Columns>
         </DataGrid>
         <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
