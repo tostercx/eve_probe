@@ -13,7 +13,12 @@
         Closing="Window_Closing" Icon="sputnik.ico"
         >
     <Grid>
-        <DataGrid x:Name="packetList" Margin="10,10,0,10.4" IsReadOnly="True" ItemsSource="{Binding packets}" AutoGenerateColumns="False" SelectionMode="Single" SelectionUnit="FullRow" CanUserAddRows="False" HorizontalAlignment="Left" Width="309" SelectionChanged="packetList_SelectionChanged">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="400" MinWidth="100" MaxWidth="700" />
+            <ColumnDefinition Width="5" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <DataGrid x:Name="packetList" IsReadOnly="True" ItemsSource="{Binding packets}" AutoGenerateColumns="False" SelectionMode="Single" SelectionUnit="FullRow" CanUserAddRows="False" SelectionChanged="packetList_SelectionChanged">
             <DataGrid.Columns>
                 <DataGridTextColumn Width="50" Header="#" Binding="{Binding Path=nr}" CanUserSort="True" IsReadOnly="True" SortDirection="Ascending"/>
                 <DataGridTextColumn Width="30" Header="Dir" Binding="{Binding Path=direction}" CanUserSort="True" IsReadOnly="True"/>
@@ -21,72 +26,81 @@
                 <DataGridTextColumn Width="130" Header="Method" Binding="{Binding Path=method}" CanUserSort="True" IsReadOnly="True"/>
             </DataGrid.Columns>
         </DataGrid>
-        <TabControl x:Name="tabControl" Margin="324,10,10,150">
-            <TabItem Header="Capture">
-                <Grid>
-                    <Button x:Name="pause" Content="{Binding pauseText}" Margin="10,10,0,0" Height="25" VerticalAlignment="Top" Click="pause_Click" HorizontalAlignment="Left" Width="67"/>
-                    <Button x:Name="clear" Content="Clear" Margin="82,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="clear_Click"/>
-                    <Button x:Name="hook" IsEnabled="{Binding hookEnabled}" Content="Hook EVE" Margin="154,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="hook_Click"/>
-                    <Button x:Name="dump" IsEnabled="{Binding hookEnabled}" Content="Dump Bin" Margin="226,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="dump_Click"/>
-                    <Button x:Name="toInjector" IsEnabled="{Binding copyEnabled}" Content="Copy to injector" Margin="0,10,10,0" HorizontalAlignment="Right" Width="109" Height="25" VerticalAlignment="Top" Click="toInjector_Click"/>
-                    <TabControl x:Name="captureView" Margin="0,40,0,0">
+        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="5" />
+                <RowDefinition Height="140" MinHeight="20" MaxHeight="260" />
+            </Grid.RowDefinitions>
+            <TabControl x:Name="tabControl">
+                <TabItem Header="Capture">
+                    <Grid>
+                        <Button x:Name="pause" Content="{Binding pauseText}" Margin="10,10,0,0" Height="25" VerticalAlignment="Top" Click="pause_Click" HorizontalAlignment="Left" Width="67"/>
+                        <Button x:Name="clear" Content="Clear" Margin="82,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="clear_Click"/>
+                        <Button x:Name="hook" IsEnabled="{Binding hookEnabled}" Content="Hook EVE" Margin="154,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="hook_Click"/>
+                        <Button x:Name="dump" IsEnabled="{Binding hookEnabled}" Content="Dump Bin" Margin="226,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="dump_Click"/>
+                        <Button x:Name="toInjector" IsEnabled="{Binding copyEnabled}" Content="Copy to injector" Margin="0,10,10,0" HorizontalAlignment="Right" Width="109" Height="25" VerticalAlignment="Top" Click="toInjector_Click"/>
+                        <TabControl x:Name="captureView" Margin="0,40,0,0">
+                            <TabItem Header="JSON">
+                                <WindowsFormsHost>
+                                    <scintilla:Scintilla x:Name="objectView" ReadOnly="True" />
+                                </WindowsFormsHost>
+                            </TabItem>
+                            <TabItem Header="Hex">
+                                <WindowsFormsHost>
+                                    <hexbox:HexBox x:Name="rawHexView"
+                                              StringViewVisible="True" 
+                                              UseFixedBytesPerLine="True" 
+                                              VScrollBarVisible="True" 
+                                              LineInfoVisible="True" 
+                                              ReadOnly="True"
+                                              ColumnInfoVisible="True" />
+                                </WindowsFormsHost>
+                            </TabItem>
+                            <TabItem Header="Crypted">
+                                <WindowsFormsHost>
+                                    <hexbox:HexBox x:Name="cryptedHexView"
+                                              StringViewVisible="True" 
+                                              UseFixedBytesPerLine="True" 
+                                              VScrollBarVisible="True" 
+                                              LineInfoVisible="True" 
+                                              ReadOnly="True"
+                                              ColumnInfoVisible="True" />
+                                </WindowsFormsHost>
+                            </TabItem>
+                        </TabControl>
+                    </Grid>
+                </TabItem>
+                <TabItem Header="Injector">
+                    <TabControl x:Name="injectorTabs">
                         <TabItem Header="JSON">
-                            <WindowsFormsHost>
-                                <scintilla:Scintilla x:Name="objectView" ReadOnly="True" />
-                            </WindowsFormsHost>
+                            <Grid>
+                                <Button x:Name="encode" Content="Encode" Margin="10,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="encode_Click"/>
+                                <WindowsFormsHost Margin="0,40,0,0">
+                                    <scintilla:Scintilla x:Name="injectorJSONView" CharAdded="injectorJSONView_CharAdded" InsertCheck="injectorJSONView_InsertCheck" />
+                                </WindowsFormsHost>
+                            </Grid>
                         </TabItem>
                         <TabItem Header="Hex">
-                            <WindowsFormsHost>
-                                <hexbox:HexBox x:Name="rawHexView"
-                                              StringViewVisible="True" 
-                                              UseFixedBytesPerLine="True" 
-                                              VScrollBarVisible="True" 
-                                              LineInfoVisible="True" 
-                                              ReadOnly="True"
-                                              ColumnInfoVisible="True" />
-                            </WindowsFormsHost>
-                        </TabItem>
-                        <TabItem Header="Crypted">
-                            <WindowsFormsHost>
-                                <hexbox:HexBox x:Name="cryptedHexView"
-                                              StringViewVisible="True" 
-                                              UseFixedBytesPerLine="True" 
-                                              VScrollBarVisible="True" 
-                                              LineInfoVisible="True" 
-                                              ReadOnly="True"
-                                              ColumnInfoVisible="True" />
-                            </WindowsFormsHost>
-                        </TabItem>
-                    </TabControl>
-                </Grid>
-            </TabItem>
-            <TabItem Header="Injector">
-                <TabControl Name="injectorTabs">
-                    <TabItem Header="JSON">
-                        <Grid>
-                            <Button x:Name="encode" Content="Encode" Margin="10,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="encode_Click"/>
-                            <WindowsFormsHost Margin="0,40,0,0">
-                                <scintilla:Scintilla x:Name="injectorJSONView" CharAdded="injectorJSONView_CharAdded" InsertCheck="injectorJSONView_InsertCheck" />
-                            </WindowsFormsHost>
-                        </Grid>
-                    </TabItem>
-                    <TabItem Header="Hex">
-                        <Grid>
-                            <Button x:Name="inject" Content="Inject" Margin="10,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="inject_Click"/>
-                            <WindowsFormsHost Margin="0,40,0,0">
-                                <hexbox:HexBox x:Name="injectorHexView"
+                            <Grid>
+                                <Button x:Name="inject" Content="Inject" Margin="10,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="inject_Click"/>
+                                <WindowsFormsHost Margin="0,40,0,0">
+                                    <hexbox:HexBox x:Name="injectorHexView"
                                                   StringViewVisible="True" 
                                                   UseFixedBytesPerLine="True" 
                                                   VScrollBarVisible="True" 
                                                   LineInfoVisible="True" 
                                                   ReadOnly="False"
                                                   ColumnInfoVisible="True" />
-                            </WindowsFormsHost>
-                        </Grid>
-                    </TabItem>
-                </TabControl>
-            </TabItem>
-        </TabControl>
-        <TextBox Name="logBox" VerticalScrollBarVisibility="Auto"  TextChanged="log_TextChanged" IsReadOnly="True" Margin="324,0,10,10" TextWrapping="Wrap" Text="{Binding logText}" Height="135" VerticalAlignment="Bottom"/>
+                                </WindowsFormsHost>
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+                </TabItem>
+            </TabControl>
+            <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" />
+            <TextBox Grid.Row="2" x:Name="logBox" VerticalScrollBarVisibility="Auto" TextChanged="log_TextChanged" IsReadOnly="True" TextWrapping="Wrap" Text="{Binding logText}"/>
+        </Grid>
     </Grid>
 </Window>

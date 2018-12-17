@@ -95,15 +95,26 @@ def deserialize(x):
 def load(buf):
     try:
         obj = blue.marshal.Load(buf)
-        return pformat(serialize(obj))
+        obj = serialize(obj)
+        dest = obj.get('destination', {})
+        meth = dest.get('broadcastID', dest.get('service', ''))
+        return (
+            pformat(obj),
+            obj['__class__'].split('.')[-1],
+            str(meth),
+            '')
     except:
-        return traceback.format_exc()
+        return (
+            '',
+            '',
+            '',
+            traceback.format_exc())
 
 
 def save(buf):
     try:
         obj = deserialize(eval(buf))
-        return blue.marshal.Save(obj).Str()
+        return (blue.marshal.Save(obj).Str(), '')
     except:
-        return traceback.format_exc()
+        return ('', traceback.format_exc())
 

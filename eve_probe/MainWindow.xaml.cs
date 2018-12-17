@@ -44,7 +44,7 @@ namespace eve_probe
         public void ReportException(Exception InInfo)
         {
             Log.log("-- error in target --");
-            Log.log(InInfo.ToString());
+            Log.log(InInfo.ToString(), false);
             Log.log("-- /error in target --");
         }
 
@@ -103,16 +103,14 @@ namespace eve_probe
         public static byte[] Decompress(byte[] input)
         {
             if (input.Length < 3)
-            {
                 return null;
-            }
+
             // two bytes shaved off (zlib header)
             var sourceStream = new MemoryStream(input, 2, input.Length - 2);
             var stream = new DeflateStream(sourceStream, CompressionMode.Decompress);
             if (stream == null)
-            {
                 return null;
-            }
+
             return stream.ReadAllBytes();
         }
     }
@@ -123,13 +121,10 @@ namespace eve_probe
         public string direction { get; set; }
         public string type { get; set; }
         public string method { get; set; }
-        //public DateTime timestamp { get; set; }
 
         public byte[] rawData { set; get; }
         public byte[] cryptedData { set; get; }
 
-        //public PyRep PyObject { set; get; }
-        //public PyPacket PyPacket { set; get; }
         public string objectText { set; get; }
     }
 
@@ -232,8 +227,6 @@ namespace eve_probe
 
         public void processRawPacket(bool outgoing, byte[] raw, byte[] crypted)
         {
-            //MessageBox.Show("Got it! P " + viewModel.isPaused);
-
             if (!viewModel.isPaused)
             {
                 var packet = new Packet()
@@ -242,17 +235,11 @@ namespace eve_probe
                     direction = outgoing ? "Out" : "In",
                     type = "Unknown",
                     method = "",
-                    //timestamp = DateTime.Now,
                     objectText = "",
                     rawData = raw,
                     cryptedData = crypted,
                 };
 
-                // dump data
-                //File.WriteAllBytes("dump\\" + packet.nr, packet.rawData);
-
-                // unmarshal data
-                //new Thread(() => unmarshal(packet)).Start();
                 unmarshal(packet);
             }
         }
@@ -277,10 +264,8 @@ namespace eve_probe
             if (!appClosing)
             {
                 Py_Initialize();
-                //var gil = PyGILState_Ensure();
                 var marshler = File.ReadAllText("marshal.py");
                 PyRun_SimpleString(marshler);
-                //PyGILState_Release(gil);
             }
 
             while (!appClosing)
@@ -305,45 +290,43 @@ namespace eve_probe
         {
             if (objTxt.Length > 0 && pythonLoaded)
             {
-                //var gil = PyGILState_Ensure();
                 // Remarshal
                 var main = PyImport_AddModule("__main__");
                 var save = PyObject_GetAttrString(main, "save");
-                //var bText = objTxt.ToCharArray();
-                //var uText = Marshal.AllocHGlobal(bText.Length);
-                //Marshal.Copy(bText, 0, uText, bText.Length);
-                var data = PyObject_CallFunction(save, "s#", __arglist(Marshal.StringToHGlobalAnsi(objTxt), objTxt.Length));
-                //Marshal.FreeHGlobal(uText);
 
-                if (main == IntPtr.Zero) MessageBox.Show("main null");
-                if (save == IntPtr.Zero) MessageBox.Show("save null");
-                if (data == IntPtr.Zero) MessageBox.Show("data null");
+                var tuple = PyObject_CallFunction(save, "s#", __arglist(Marshal.StringToHGlobalAnsi(objTxt), objTxt.Length));
 
-                //var uData = PyString_AsString(data);
-                //var size = PyString_Size(data);
+                var data = PyTuple_GetItem(tuple, 0);
+                var err = PyTuple_GetItem(tuple, 1);
 
-                //if (uData == IntPtr.Zero) MessageBox.Show("uData null");
-                //if (size == -1) MessageBox.Show("size -1");
-
-                //*
-                var uData = PyString_AsString(data);
-                var size = PyString_Size(data);
-                var encoded = new byte[size];
-                Marshal.Copy(uData, encoded, 0, size);
-
-                inMain(() =>
+                if (data != IntPtr.Zero && PyString_Size(data) > 0)
                 {
-                    using (var ms = new MemoryStream())
+                    var uData = PyString_AsString(data);
+                    var size = PyString_Size(data);
+                    var encoded = new byte[size];
+                    Marshal.Copy(uData, encoded, 0, size);
+
+                    inMain(() =>
                     {
-                        using (var b = new BinaryWriter(ms))
+                        using (var ms = new MemoryStream())
                         {
-                            b.Write(encoded);
-                            injectorHexView.ByteProvider = new DynamicByteProvider(ms.ToArray());
+                            using (var b = new BinaryWriter(ms))
+                            {
+                                b.Write(encoded);
+                                injectorHexView.ByteProvider = new DynamicByteProvider(ms.ToArray());
+
+                                injectorTabs.SelectedIndex = 1;
+                                Log.log("Done!");
+                            }
                         }
-                    }
-                });
-                //*/
-                //PyGILState_Release(gil);
+                    });
+                }
+                else if (err != IntPtr.Zero && PyString_Size(err) > 0)
+                {
+                    Log.log("-- encoding error --");
+                    Log.log(Marshal.PtrToStringAnsi(PyString_AsString(err)), false);
+                    Log.log("-- /encoding error --");
+                }
             }
 
             return null;
@@ -397,15 +380,39 @@ namespace eve_probe
                 if (pythonLoaded)
                 {
                     // Demarshal
-                    //var gil = PyGILState_Ensure();
                     var main = PyImport_AddModule("__main__");
                     var load = PyObject_GetAttrString(main, "load");
                     IntPtr uData = Marshal.AllocHGlobal(data.Length);
                     Marshal.Copy(data, 0, uData, data.Length);
-                    var text = PyObject_CallFunction(load, "s#", __arglist(uData, data.Length));
+                    var tuple = PyObject_CallFunction(load, "s#", __arglist(uData, data.Length));
                     Marshal.FreeHGlobal(uData);
-                    packet.objectText = Marshal.PtrToStringAnsi(PyString_AsString(text));
-                    //PyGILState_Release(gil);
+
+                    if (tuple != IntPtr.Zero)
+                    {
+                        var text = PyTuple_GetItem(tuple, 0);
+                        if (text != IntPtr.Zero && PyString_Size(text) > 0)
+                            packet.objectText = Marshal.PtrToStringAnsi(PyString_AsString(text));
+
+                        text = PyTuple_GetItem(tuple, 1);
+                        if (text != IntPtr.Zero && PyString_Size(text) > 0)
+                            packet.type = Marshal.PtrToStringAnsi(PyString_AsString(text));
+
+                        text = PyTuple_GetItem(tuple, 2);
+                        if (text != IntPtr.Zero && PyString_Size(text) > 0)
+                            packet.method = Marshal.PtrToStringAnsi(PyString_AsString(text));
+
+                        text = PyTuple_GetItem(tuple, 3);
+                        if (text != IntPtr.Zero && PyString_Size(text) > 0)
+                        {
+                            Log.log("-- unmarshaling error (packet " + packet.nr + ") --");
+                            Log.log(Marshal.PtrToStringAnsi(PyString_AsString(text)), false);
+                            Log.log("-- /unmarshaling error (packet " + packet.nr + ") --");
+                        }
+                    }
+                    else
+                    {
+                        Log.log("-- unknown unmarshaling error (packet " + packet.nr + ") --");
+                    }
                 }
             }
 
@@ -438,7 +445,7 @@ namespace eve_probe
                 objectView.Text = packet.objectText;
                 objectView.ReadOnly = true;
 
-                //viewModel.copyEnabled = packet.direction == "Out";
+                viewModel.copyEnabled = packet.direction == "Out";
                 viewModel.copyEnabled = true;
                 tabControl.SelectedIndex = 0;
             }
@@ -453,6 +460,8 @@ namespace eve_probe
                 injectorHexView.ByteProvider = null;
                 injectorJSONView.Text = objectView.Text;
                 tabControl.SelectedIndex = 1;
+
+                Log.log("Copied packet " + packet.nr + "to editor");
             }
         }
 
@@ -465,14 +474,10 @@ namespace eve_probe
         private void log_TextChanged(object sender, RoutedEventArgs e)
         {
             TextBox tb = sender as TextBox;
-            if (tb == null)
-            {
-                return;
-            }
+            if (tb == null) return;
 
-            // autoscroll
-            tb.SelectionStart = int.MaxValue;
-            tb.SelectionLength = 0;
+            tb.CaretIndex = tb.Text.Length;
+            tb.ScrollToEnd();
         }
 
         private void clear_Click(object sender, RoutedEventArgs e)
@@ -486,11 +491,13 @@ namespace eve_probe
         private void encode_Click(object sender, RoutedEventArgs e)
         {
             EncodeQueue.Enqueue(injectorJSONView.Text);
+            Log.log("Sending to encoder...");
         }
 
         private void inject_Click(object sender, RoutedEventArgs e)
         {
             InjectQueue.Enqueue(((DynamicByteProvider)injectorHexView.ByteProvider).Bytes.ToArray());
+            Log.log("Injecting...");
         }
 
         private void dump_Click(object sender, RoutedEventArgs e)
@@ -537,6 +544,7 @@ namespace eve_probe
             }
         }
 
+
         [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Ansi)]
         static extern IntPtr LoadLibrary([MarshalAs(UnmanagedType.LPStr)]string lpFileName);
 
@@ -561,11 +569,9 @@ namespace eve_probe
         [DllImport("python27", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
         static extern int PyString_Size(IntPtr pyStr);
 
-        //[DllImport("python27", CallingConvention = CallingConvention.Cdecl)]
-        //static extern IntPtr PyGILState_Ensure();
+        [DllImport("python27", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+        static extern IntPtr PyTuple_GetItem(IntPtr tuple, int pos);
 
-        //[DllImport("python27", CallingConvention = CallingConvention.Cdecl)]
-        //static extern void PyGILState_Release(IntPtr gstate);
 
         private void hook_Click(object sender, RoutedEventArgs e)
         {
@@ -575,7 +581,7 @@ namespace eve_probe
             Process[] procs = Process.GetProcessesByName("exefile");
             if (procs.Length == 0)
             {
-                MessageBox.Show("Could not find EVE (exefile.exe)");
+                Log.log("Could not find EVE (exefile.exe)");
                 return;
             }
 
@@ -591,8 +597,6 @@ namespace eve_probe
                     injectionLibrary,
                     ChannelName);
 
-                //MessageBox.Show("Injected to process " + TargetPID);
-
                 // SharedCache\tq
                 var path = Path.GetDirectoryName(Path.GetDirectoryName(procs[0].MainModule.FileName));
                 Environment.SetEnvironmentVariable("PYTHONPATH", path + "\\code.ccp;" + path + "\\bin");
@@ -603,17 +607,17 @@ namespace eve_probe
                 }
                 else
                 {
-                    MessageBox.Show("Failed to load " + path + "\\bin\\python27.dll");
+                    Log.log("Failed to load " + path + "\\bin\\python27.dll");
                 }
             }
             catch (Exception ExtInfo)
             {
-                MessageBox.Show("There was an error while connecting to target:\r\n" + ExtInfo.ToString());
+                Log.log("-- error while connecting to target --");
+                Log.log(ExtInfo.ToString(), false);
+                Log.log("-- /error while connecting to target --");
             }
         }
 
-        //Codes for the handling the Indention of the lines.
-        //They are manually added here until they get officially added to the Scintilla control.
         #region "CodeIndent Handlers"
         const int SCI_SETLINEINDENTATION = 2126;
         const int SCI_GETLINEINDENTATION = 2127;
