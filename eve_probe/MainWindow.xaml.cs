@@ -25,7 +25,7 @@ namespace eve_probe
             Log.log("Hook has been installed in target " + InClientPID + ".");
         }
 
-        public void Enqueue(Tuple<bool, byte[], byte[]> message)
+        public void Enqueue(Tuple<string, byte[], byte[]> message)
         {
             MainWindow.Queue.Enqueue(message);
         }
@@ -135,7 +135,7 @@ namespace eve_probe
         private int packets = 0;
         private bool appClosing = false;
         private bool pythonLoaded = false;
-        public static ConcurrentQueue<Tuple<bool, byte[], byte[]>> Queue = new ConcurrentQueue<Tuple<bool, byte[], byte[]>>();
+        public static ConcurrentQueue<Tuple<string, byte[], byte[]>> Queue = new ConcurrentQueue<Tuple<string, byte[], byte[]>>();
         public static ConcurrentQueue<string> EncodeQueue = new ConcurrentQueue<string>();
         public static ConcurrentQueue<byte[]> InjectQueue = new ConcurrentQueue<byte[]>();
 
@@ -226,14 +226,14 @@ namespace eve_probe
             Log.log("-- init complete --");
         }
 
-        public void processRawPacket(bool outgoing, byte[] raw, byte[] crypted)
+        public void processRawPacket(string dir, byte[] raw, byte[] crypted)
         {
             if (!viewModel.isPaused)
             {
                 var packet = new Packet()
                 {
                     nr = packets++,
-                    direction = outgoing ? "Out" : "In",
+                    direction = dir,
                     type = "Unknown",
                     method = "",
                     callID = "",
@@ -272,7 +272,7 @@ namespace eve_probe
 
             while (!appClosing)
             {
-                Tuple<bool, byte[], byte[]> item = null;
+                Tuple<string, byte[], byte[]> item = null;
                 while (Queue.TryDequeue(out item))
                 {
                     processRawPacket(item.Item1, item.Item2, item.Item3);
@@ -467,7 +467,7 @@ namespace eve_probe
                 injectorJSONView.Text = objectView.Text;
                 tabControl.SelectedIndex = 1;
 
-                Log.log("Copied packet " + packet.nr + "to editor");
+                Log.log("Copied packet " + packet.nr + " to editor");
             }
         }
 
@@ -502,8 +502,10 @@ namespace eve_probe
 
         private void inject_Click(object sender, RoutedEventArgs e)
         {
-            InjectQueue.Enqueue(((DynamicByteProvider)injectorHexView.ByteProvider).Bytes.ToArray());
+            var raw = ((DynamicByteProvider)injectorHexView.ByteProvider).Bytes.ToArray();
+            InjectQueue.Enqueue(raw);
             Log.log("Injecting...");
+            Queue.Enqueue(new Tuple<string, byte[], byte[]>("Inj", raw, null));
         }
 
         private void dump_Click(object sender, RoutedEventArgs e)

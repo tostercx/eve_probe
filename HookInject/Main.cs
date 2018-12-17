@@ -83,7 +83,8 @@ namespace HookInject
                             var len  = Marshal.ReadInt32(plen);
                             Marshal.WriteInt32(wsabuf, Marshal.ReadInt32(plen)); // Wtf MS, no Marshal.Copy for IntPtr 2 IntPtr?
 
-                            send(ccpSock, wsabuf, len + 4, 0);
+                            int sent = send(ccpSock, wsabuf, len + 4, 0);
+                            Interface.log("Sent " + sent + " bytes");
 
                             Marshal.FreeHGlobal(plen);
                             Marshal.FreeHGlobal(wsabuf);
@@ -181,7 +182,7 @@ namespace HookInject
                     byte[] cryptedData = new byte[size];
                     Marshal.Copy(pbData, cryptedData, 0, size);
 
-                    This.Interface.Enqueue(new Tuple<bool, byte[], byte[]>(true, rawData, cryptedData));
+                    This.Interface.Enqueue(new Tuple<string, byte[], byte[]>("Out", rawData, cryptedData));
                 }
             }
             catch (Exception ExtInfo)
@@ -220,7 +221,7 @@ namespace HookInject
                     byte[] rawData = new byte[size];
                     Marshal.Copy(pbData, rawData, 0, size);
 
-                    This.Interface.Enqueue(new Tuple<bool, byte[], byte[]>(false, rawData, cryptedData));
+                    This.Interface.Enqueue(new Tuple<string, byte[], byte[]>("In", rawData, cryptedData));
                 }
             }
             catch (Exception ExtInfo)
