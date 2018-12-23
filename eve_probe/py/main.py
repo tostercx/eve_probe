@@ -14,6 +14,12 @@ import eveexceptions
 import crimewatch
 
 
+import sys
+fake_builtin = mock.Mock()
+fake_builtin.set = set
+sys.modules['__faketin__'] = fake_builtin
+
+
 import imp
 state = imp.load_source('state', './py/state.py')
 
@@ -44,7 +50,7 @@ fakeobjs = [
 def serialize(x):
     if x.__class__.__module__ == '__builtin__':
         if hasattr(x, '__iter__'):
-            it = list(x) if x.__class__.__name__ == 'tuple' else x
+            it = list(x) if x.__class__.__name__ in ['tuple', 'set'] else x
             keys = it.keys() if x.__class__.__name__ == 'dict' else range(len(it))
             for key in keys:
                 it[key] = serialize(it[key])
@@ -98,6 +104,7 @@ def deserialize(x):
 
 def load(buf):
     try:
+        buf = buf.replace('__builtin__.set', '__faketin__.set')
         obj = blue.marshal.Load(buf)
         obj = serialize(obj)
         
