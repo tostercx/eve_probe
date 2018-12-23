@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:filter="clr-namespace:DataGridFilterLibrary;assembly=DataGridFilterLibrary"
         xmlns:local="clr-namespace:eve_probe"
         xmlns:scintilla="clr-namespace:ScintillaNET;assembly=ScintillaNET"
         xmlns:hexbox="clr-namespace:Be.Windows.Forms;assembly=Be.Windows.Forms.HexBox"
@@ -18,7 +19,9 @@
             <ColumnDefinition Width="5" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
-        <DataGrid x:Name="packetList" IsReadOnly="True" ItemsSource="{Binding packets}" AutoGenerateColumns="False" SelectionMode="Single" SelectionUnit="FullRow" CanUserAddRows="False" SelectionChanged="packetList_SelectionChanged">
+        <DataGrid ColumnHeaderStyle="{StaticResource {ComponentResourceKey 
+           TypeInTargetAssembly={x:Type filter:DataGridHeaderFilterControl}, 
+           ResourceId=DataGridHeaderFilterControlStyle}}" x:Name="packetList" IsReadOnly="True" ItemsSource="{Binding packets}" AutoGenerateColumns="False" SelectionMode="Single" SelectionUnit="FullRow" CanUserAddRows="False" SelectionChanged="packetList_SelectionChanged">
             <DataGrid.Columns>
                 <DataGridTextColumn Width="50" Header="#" Binding="{Binding Path=nr}" CanUserSort="True" IsReadOnly="True" SortDirection="Ascending"/>
                 <DataGridTextColumn Width="30" Header="Dir" Binding="{Binding Path=direction}" CanUserSort="True" IsReadOnly="True"/>
@@ -98,6 +101,9 @@
                             </Grid>
                         </TabItem>
                     </TabControl>
+                </TabItem>
+                <TabItem Header="Status">
+                    <TextBox TextWrapping="Wrap" Text="{Binding pyState}"/>
                 </TabItem>
             </TabControl>
             <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" />

@@ -14,6 +14,10 @@ import eveexceptions
 import crimewatch
 
 
+import imp
+state = imp.load_source('state', './py/state.py')
+
+
 eveprefs.boot = mock.Mock()
 eveprefs.boot.role = 'client'
 builtinmangler.MangleBuiltins()
@@ -114,9 +118,14 @@ def load(buf):
             callID = obj.get('source', {}).get('callID', '')
         callID = '' if not callID else str(callID)
         
+        try:
+            state.on_packet(obj)
+        except:
+            pass
+        
         return (
             pformat(obj),
-            obj['__class__'].split('.')[-1],
+            obj['__class__'].split('.')[-1] if '__class__' in obj else '',
             meth,
             callID,
             '')

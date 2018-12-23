@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using EasyHook;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace HookInject
 {
@@ -46,6 +47,12 @@ namespace HookInject
                 antiGC.Add(LocalHook.Create(
                     LocalHook.GetProcAddress("ws2_32.dll", "WSASend"),
                     new DWSASend(WSASend_Hooked),
+                    this));
+                antiGC.Last().ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+
+                antiGC.Add(LocalHook.Create(
+                    LocalHook.GetProcAddress("Kernel32.dll", "WriteFile"),
+                    new DWriteFile(WriteFile_Hooked),
                     this));
                 antiGC.Last().ThreadACL.SetExclusiveACL(new Int32[] { 0 });
             }
@@ -103,6 +110,45 @@ namespace HookInject
                 //System.Windows.Forms.MessageBox.Show(ExtInfo.ToString());
                 // Ping() will raise an exception if host is unreachable
             }
+        }
+
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall, SetLastError = true)]
+        delegate bool DWriteFile(IntPtr hFile, IntPtr lpBuffer, int len, IntPtr buflen, IntPtr lpOverlapped);
+
+        [DllImport("kernel32", SetLastError = true, CallingConvention = CallingConvention.StdCall)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool WriteFile(IntPtr hFile, IntPtr lpBuffer, int len, IntPtr buflen, IntPtr lpOverlapped);
+
+        [DllImport("kernel32", SetLastError = true, CallingConvention = CallingConvention.StdCall)]
+        static extern uint GetFinalPathNameByHandle(IntPtr hFile, IntPtr lpBuffer, uint len, uint flags);
+
+        private bool WriteFile_Hooked(IntPtr hFile, IntPtr lpBuffer, int len, IntPtr buflen, IntPtr lpOverlapped)
+        {
+            bool ret = false;
+            Main This = (Main)HookRuntimeInfo.Callback;
+            try
+            {
+                var path = Marshal.AllocHGlobal(1024);
+                var plen = GetFinalPathNameByHandle(hFile, path, 1024, 0);
+                var strPath = Marshal.PtrToStringAnsi(path);
+                Marshal.FreeHGlobal(path);
+
+                if (plen > 0 && Regex.IsMatch(strPath, "\\\\core_char_(\\d+)\\.dat$"))
+                {
+                    byte[] data = new byte[len];
+                    Marshal.Copy(lpBuffer, data, 0, len);
+
+                    This.Interface.Enqueue(new Tuple<string, byte[], byte[]>("Cfg", data, null));
+                }
+                
+                ret = WriteFile(hFile, lpBuffer, len, buflen, lpOverlapped);
+            }
+            catch (Exception ExtInfo)
+            {
+                This.Interface.ReportException(ExtInfo);
+            }
+            return ret;
         }
 
 

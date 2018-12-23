@@ -234,7 +234,7 @@ namespace eve_probe
                 {
                     nr = packets++,
                     direction = dir,
-                    type = "Unknown",
+                    type = dir == "Cfg" ? "CharSettings" : "Unknown",
                     method = "",
                     callID = "",
                     objectText = "",
@@ -266,8 +266,8 @@ namespace eve_probe
             if (!appClosing)
             {
                 Py_Initialize();
-                var marshler = File.ReadAllText("marshal.py");
-                PyRun_SimpleString(marshler);
+                var main = File.ReadAllText("py\\main.py");
+                PyRun_SimpleString(main);
             }
 
             while (!appClosing)
@@ -276,6 +276,7 @@ namespace eve_probe
                 while (Queue.TryDequeue(out item))
                 {
                     processRawPacket(item.Item1, item.Item2, item.Item3);
+                    viewModel.pyState = getpystate();
                 }
 
                 string py_obj_str = null;
@@ -286,6 +287,24 @@ namespace eve_probe
 
                 Thread.Sleep(500);
             }
+        }
+
+        private string getpystate()
+        {
+            if (pythonLoaded)
+            {
+                var state = PyImport_AddModule("state");
+                var get_status_str = PyObject_GetAttrString(state, "get_status_str");
+
+                var status = PyObject_CallFunction(get_status_str, "", __arglist());
+
+                if (status != IntPtr.Zero && PyString_Size(status) > 0)
+                {
+                    return Marshal.PtrToStringAnsi(PyString_AsString(status));
+                }
+            }
+
+            return "";
         }
 
         private byte[] marshal(string objTxt)
@@ -375,7 +394,10 @@ namespace eve_probe
             if (data[0] != HeaderByte)
             {
                 if (data[0] == PythonMarker)
+                {
                     packet.objectText = "Python file";
+                    packet.type = "PyFile";
+                }
             }
             else
             {
