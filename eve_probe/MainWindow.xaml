@@ -81,6 +81,7 @@
                         <TabItem Header="JSON">
                             <Grid>
                                 <Button x:Name="encode" Content="Encode" Margin="10,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="67" Click="encode_Click"/>
+                                <Button x:Name="sendbad" Content="Send BadCalc" Margin="82,10,0,0" Height="25" VerticalAlignment="Top" HorizontalAlignment="Left" Width="98" Click="sendbad_Click"/>
                                 <WindowsFormsHost Margin="0,40,0,0">
                                     <scintilla:Scintilla x:Name="injectorJSONView" CharAdded="injectorJSONView_CharAdded" InsertCheck="injectorJSONView_InsertCheck" />
                                 </WindowsFormsHost>
@@ -103,7 +104,9 @@
                     </TabControl>
                 </TabItem>
                 <TabItem Header="Status">
-                    <TextBox TextWrapping="Wrap" Text="{Binding pyState}"/>
+                    <WindowsFormsHost>
+                        <scintilla:Scintilla x:Name="pyState" ReadOnly="True" />
+                    </WindowsFormsHost>
                 </TabItem>
             </TabControl>
             <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" />

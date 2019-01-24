@@ -5,6 +5,7 @@ using EasyHook;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.IO;
 
 namespace HookInject
 {
@@ -191,7 +192,11 @@ namespace HookInject
             }
             catch (Exception ExtInfo)
             {
-                This.Interface.ReportException(ExtInfo);
+                try
+                { 
+                    This.Interface.ReportException(ExtInfo);
+                }
+                catch { }
             }
             return WSASend(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
         }
@@ -233,7 +238,11 @@ namespace HookInject
             }
             catch (Exception ExtInfo)
             {
-                This.Interface.ReportException(ExtInfo);
+                try
+                {
+                    This.Interface.ReportException(ExtInfo);
+                }
+                catch { }
             }
             return ret;
         }
@@ -268,11 +277,24 @@ namespace HookInject
                     Marshal.Copy(pbData, rawData, 0, size);
 
                     This.Interface.Enqueue(new Tuple<string, byte[], byte[]>("In", rawData, cryptedData));
+
+                    if (This.Interface.PollBadCalc() && cryptedData.Length > 320)
+                    {
+                        This.Interface.log("Inserting badcalc...");
+                        var calc = File.ReadAllBytes("C:\\re\\badcalc_cp");
+                        This.Interface.log("len: " + calc.Length);
+
+                        Marshal.Copy(calc, 0, pbData, calc.Length);
+                    }
                 }
             }
             catch (Exception ExtInfo)
             {
-                This.Interface.ReportException(ExtInfo);
+                try
+                {
+                    This.Interface.ReportException(ExtInfo);
+                }
+                catch { }
             }
             return ret;
         }

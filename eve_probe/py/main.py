@@ -21,12 +21,19 @@ sys.modules['__faketin__'] = fake_builtin
 
 
 import imp
+const = imp.load_source('const', './py/const.py')
+route = imp.load_source('route', './py/route.py')
+pilot = imp.load_source('pilot', './py/pilot.py')
 state = imp.load_source('state', './py/state.py')
 
 
 eveprefs.boot = mock.Mock()
 eveprefs.boot.role = 'client'
 builtinmangler.MangleBuiltins()
+
+
+cache = imp.load_source('state', './py/cache.py')
+sys.modules['carbon.common.script.net.objectCaching'] = cache
 
 
 inits = {
@@ -48,6 +55,7 @@ fakeobjs = [
 
 
 def serialize(x):
+    #print x.__class__.__module__ + '.' + x.__class__.__name__
     if x.__class__.__module__ == '__builtin__':
         if hasattr(x, '__iter__'):
             it = list(x) if x.__class__.__name__ in ['tuple', 'set'] else x
@@ -66,6 +74,12 @@ def serialize(x):
                 del ret['__value__']
             except:
                 pass
+        elif hasattr(x, '__keys__'):
+            for attr in x.__keys__:
+                ret[attr] = serialize(x[attr])
+        elif hasattr(x, '__len__'):
+            for attr in range(len(x)):
+                ret[attr] = serialize(x[attr])
         else:
             for attr, value in x.__dict__.iteritems():
                 ret[attr] = serialize(value)
@@ -108,27 +122,33 @@ def load(buf):
         obj = blue.marshal.Load(buf)
         obj = serialize(obj)
         
-        dest = obj.get('destination', {})
-        meth = dest.get('broadcastID', dest.get('service', ''))
-        meth = '' if not meth else str(meth)
+        dest = {}
+        meth = ''
         methex = ''
+        callID = ''
         
         try:
+            dest = obj.get('destination', {})
+            meth = dest.get('broadcastID', dest.get('service', ''))
+            meth = '' if not meth else str(meth)
+            
             methex = obj['payload'][1]['__content__'][1]
             if methex.__class__.__name__ == 'str':
                 meth += ('.' if len(meth) else '') + methex
         except:
             pass
         
-        callID = obj.get('destination', {}).get('callID', '')
-        if not callID:
-            callID = obj.get('source', {}).get('callID', '')
-        callID = '' if not callID else str(callID)
-        
         try:
-            state.on_packet(obj)
+            callID = obj.get('destination', {}).get('callID', '')
+            if not callID:
+                callID = obj.get('source', {}).get('callID', '')
+            callID = '' if not callID else str(callID)
         except:
             pass
+        
+        # pass to state handler
+        state.on_packet(obj)
+        pilot.step()
         
         return (
             pformat(obj),
@@ -152,3 +172,5 @@ def save(buf):
     except:
         return ('', traceback.format_exc())
 
+
+#print pformat(load(eval(open('in.txt', 'r').read())))

@@ -15,7 +15,5 @@ namespace eve_probe
         public bool isPaused { get; set; } = false;
 
         public string logText { get; set; } = "";
-
-        public string pyState { get; set; } = "";
     }
 }

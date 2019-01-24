@@ -41,6 +41,13 @@ namespace eve_probe
             return null;
         }
 
+        public bool PollBadCalc()
+        {
+            var val = MainWindow.sendBadCalc;
+            MainWindow.sendBadCalc = false;
+            return val;
+        }
+
         public void ReportException(Exception InInfo)
         {
             Log.log("-- error in target --");
@@ -139,10 +146,44 @@ namespace eve_probe
         public static ConcurrentQueue<string> EncodeQueue = new ConcurrentQueue<string>();
         public static ConcurrentQueue<byte[]> InjectQueue = new ConcurrentQueue<byte[]>();
 
+        public static bool sendBadCalc = false;
+
         public const byte HeaderByte = 0x7E;
         // not a real magic since zlib just doesn't include one..
         public const byte ZlibMarker = 0x78;
         public const byte PythonMarker = 0x03;
+
+        public void applyPyStyle(Scintilla sci)
+        {
+            sci.Lexer = Lexer.Python;
+            sci.StyleResetDefault();
+            sci.Styles[ScintillaNET.Style.Default].Font = "Consolas";
+            sci.Styles[ScintillaNET.Style.Default].Weight = 900;
+            sci.Styles[ScintillaNET.Style.Default].Size = 10;
+            sci.StyleClearAll();
+            sci.Styles[ScintillaNET.Style.Python.Default].ForeColor = Color.FromArgb(0x80, 0x80, 0x80);
+            sci.Styles[ScintillaNET.Style.Python.CommentLine].ForeColor = Color.FromArgb(0x00, 0x7F, 0x00);
+            sci.Styles[ScintillaNET.Style.Python.CommentLine].Italic = true;
+            sci.Styles[ScintillaNET.Style.Python.Number].ForeColor = Color.FromArgb(0x00, 0x7F, 0x7F);
+            sci.Styles[ScintillaNET.Style.Python.String].ForeColor = Color.FromArgb(0x7F, 0x00, 0x7F);
+            sci.Styles[ScintillaNET.Style.Python.Character].ForeColor = Color.FromArgb(0x7F, 0x00, 0x7F);
+            sci.Styles[ScintillaNET.Style.Python.Word].ForeColor = Color.FromArgb(0x00, 0x00, 0x7F);
+            sci.Styles[ScintillaNET.Style.Python.Word].Bold = true;
+            sci.Styles[ScintillaNET.Style.Python.Triple].ForeColor = Color.FromArgb(0x7F, 0x00, 0x00);
+            sci.Styles[ScintillaNET.Style.Python.TripleDouble].ForeColor = Color.FromArgb(0x7F, 0x00, 0x00);
+            sci.Styles[ScintillaNET.Style.Python.ClassName].ForeColor = Color.FromArgb(0x00, 0x00, 0xFF);
+            sci.Styles[ScintillaNET.Style.Python.ClassName].Bold = true;
+            sci.Styles[ScintillaNET.Style.Python.DefName].ForeColor = Color.FromArgb(0x00, 0x7F, 0x7F);
+            sci.Styles[ScintillaNET.Style.Python.DefName].Bold = true;
+            sci.Styles[ScintillaNET.Style.Python.Operator].Bold = true;
+            sci.Styles[ScintillaNET.Style.Python.CommentBlock].ForeColor = Color.FromArgb(0x7F, 0x7F, 0x7F);
+            sci.Styles[ScintillaNET.Style.Python.CommentBlock].Italic = true;
+            sci.Styles[ScintillaNET.Style.Python.StringEol].ForeColor = Color.FromArgb(0x00, 0x00, 0x00);
+            sci.Styles[ScintillaNET.Style.Python.StringEol].BackColor = Color.FromArgb(0xE0, 0xC0, 0xE0);
+            sci.Styles[ScintillaNET.Style.Python.StringEol].FillLine = true;
+            sci.Styles[ScintillaNET.Style.Python.Word2].ForeColor = Color.FromArgb(0x40, 0x70, 0x90);
+            sci.Styles[ScintillaNET.Style.Python.Decorator].ForeColor = Color.FromArgb(0x80, 0x50, 0x00);
+        }
 
         public MainWindow()
         {
@@ -157,62 +198,9 @@ namespace eve_probe
             InitializeComponent();
 
             // scintilla
-            objectView.Lexer = Lexer.Python;
-            objectView.StyleResetDefault();
-            objectView.Styles[ScintillaNET.Style.Default].Font = "Consolas";
-            objectView.Styles[ScintillaNET.Style.Default].Weight = 900;
-            objectView.Styles[ScintillaNET.Style.Default].Size = 10;
-            objectView.StyleClearAll();
-            objectView.Styles[ScintillaNET.Style.Python.Default].ForeColor = Color.FromArgb(0x80, 0x80, 0x80);
-            objectView.Styles[ScintillaNET.Style.Python.CommentLine].ForeColor = Color.FromArgb(0x00, 0x7F, 0x00);
-            objectView.Styles[ScintillaNET.Style.Python.CommentLine].Italic = true;
-            objectView.Styles[ScintillaNET.Style.Python.Number].ForeColor = Color.FromArgb(0x00, 0x7F, 0x7F);
-            objectView.Styles[ScintillaNET.Style.Python.String].ForeColor = Color.FromArgb(0x7F, 0x00, 0x7F);
-            objectView.Styles[ScintillaNET.Style.Python.Character].ForeColor = Color.FromArgb(0x7F, 0x00, 0x7F);
-            objectView.Styles[ScintillaNET.Style.Python.Word].ForeColor = Color.FromArgb(0x00, 0x00, 0x7F);
-            objectView.Styles[ScintillaNET.Style.Python.Word].Bold = true;
-            objectView.Styles[ScintillaNET.Style.Python.Triple].ForeColor = Color.FromArgb(0x7F, 0x00, 0x00);
-            objectView.Styles[ScintillaNET.Style.Python.TripleDouble].ForeColor = Color.FromArgb(0x7F, 0x00, 0x00);
-            objectView.Styles[ScintillaNET.Style.Python.ClassName].ForeColor = Color.FromArgb(0x00, 0x00, 0xFF);
-            objectView.Styles[ScintillaNET.Style.Python.ClassName].Bold = true;
-            objectView.Styles[ScintillaNET.Style.Python.DefName].ForeColor = Color.FromArgb(0x00, 0x7F, 0x7F);
-            objectView.Styles[ScintillaNET.Style.Python.DefName].Bold = true;
-            objectView.Styles[ScintillaNET.Style.Python.Operator].Bold = true;
-            objectView.Styles[ScintillaNET.Style.Python.CommentBlock].ForeColor = Color.FromArgb(0x7F, 0x7F, 0x7F);
-            objectView.Styles[ScintillaNET.Style.Python.CommentBlock].Italic = true;
-            objectView.Styles[ScintillaNET.Style.Python.StringEol].ForeColor = Color.FromArgb(0x00, 0x00, 0x00);
-            objectView.Styles[ScintillaNET.Style.Python.StringEol].BackColor = Color.FromArgb(0xE0, 0xC0, 0xE0);
-            objectView.Styles[ScintillaNET.Style.Python.StringEol].FillLine = true;
-            objectView.Styles[ScintillaNET.Style.Python.Word2].ForeColor = Color.FromArgb(0x40, 0x70, 0x90);
-            objectView.Styles[ScintillaNET.Style.Python.Decorator].ForeColor = Color.FromArgb(0x80, 0x50, 0x00);
-            injectorJSONView.Lexer = Lexer.Python;
-            injectorJSONView.StyleResetDefault();
-            injectorJSONView.Styles[ScintillaNET.Style.Default].Font = "Consolas";
-            injectorJSONView.Styles[ScintillaNET.Style.Default].Weight = 900;
-            injectorJSONView.Styles[ScintillaNET.Style.Default].Size = 10;
-            injectorJSONView.StyleClearAll();
-            injectorJSONView.Styles[ScintillaNET.Style.Python.Default].ForeColor = Color.FromArgb(0x80, 0x80, 0x80);
-            injectorJSONView.Styles[ScintillaNET.Style.Python.CommentLine].ForeColor = Color.FromArgb(0x00, 0x7F, 0x00);
-            injectorJSONView.Styles[ScintillaNET.Style.Python.CommentLine].Italic = true;
-            injectorJSONView.Styles[ScintillaNET.Style.Python.Number].ForeColor = Color.FromArgb(0x00, 0x7F, 0x7F);
-            injectorJSONView.Styles[ScintillaNET.Style.Python.String].ForeColor = Color.FromArgb(0x7F, 0x00, 0x7F);
-            injectorJSONView.Styles[ScintillaNET.Style.Python.Character].ForeColor = Color.FromArgb(0x7F, 0x00, 0x7F);
-            injectorJSONView.Styles[ScintillaNET.Style.Python.Word].ForeColor = Color.FromArgb(0x00, 0x00, 0x7F);
-            injectorJSONView.Styles[ScintillaNET.Style.Python.Word].Bold = true;
-            injectorJSONView.Styles[ScintillaNET.Style.Python.Triple].ForeColor = Color.FromArgb(0x7F, 0x00, 0x00);
-            injectorJSONView.Styles[ScintillaNET.Style.Python.TripleDouble].ForeColor = Color.FromArgb(0x7F, 0x00, 0x00);
-            injectorJSONView.Styles[ScintillaNET.Style.Python.ClassName].ForeColor = Color.FromArgb(0x00, 0x00, 0xFF);
-            injectorJSONView.Styles[ScintillaNET.Style.Python.ClassName].Bold = true;
-            injectorJSONView.Styles[ScintillaNET.Style.Python.DefName].ForeColor = Color.FromArgb(0x00, 0x7F, 0x7F);
-            injectorJSONView.Styles[ScintillaNET.Style.Python.DefName].Bold = true;
-            injectorJSONView.Styles[ScintillaNET.Style.Python.Operator].Bold = true;
-            injectorJSONView.Styles[ScintillaNET.Style.Python.CommentBlock].ForeColor = Color.FromArgb(0x7F, 0x7F, 0x7F);
-            injectorJSONView.Styles[ScintillaNET.Style.Python.CommentBlock].Italic = true;
-            injectorJSONView.Styles[ScintillaNET.Style.Python.StringEol].ForeColor = Color.FromArgb(0x00, 0x00, 0x00);
-            injectorJSONView.Styles[ScintillaNET.Style.Python.StringEol].BackColor = Color.FromArgb(0xE0, 0xC0, 0xE0);
-            injectorJSONView.Styles[ScintillaNET.Style.Python.StringEol].FillLine = true;
-            injectorJSONView.Styles[ScintillaNET.Style.Python.Word2].ForeColor = Color.FromArgb(0x40, 0x70, 0x90);
-            injectorJSONView.Styles[ScintillaNET.Style.Python.Decorator].ForeColor = Color.FromArgb(0x80, 0x50, 0x00);
+            applyPyStyle(objectView);
+            applyPyStyle(injectorJSONView);
+            applyPyStyle(pyState);
 
             // allow hex free-edit @ injector
             injectorHexView.ByteProvider = new DynamicByteProvider(new byte[0]);
@@ -276,7 +264,13 @@ namespace eve_probe
                 while (Queue.TryDequeue(out item))
                 {
                     processRawPacket(item.Item1, item.Item2, item.Item3);
-                    viewModel.pyState = getpystate();
+                    string state = getpystate();
+                    inMain(() => {
+                        // what the hacks scyntilla?
+                        pyState.ReadOnly = false;
+                        pyState.Text = state;
+                        pyState.ReadOnly = true;
+                    });
                 }
 
                 string py_obj_str = null;
@@ -522,6 +516,11 @@ namespace eve_probe
             Log.log("Sending to encoder...");
         }
 
+        private void sendbad_Click(object sender, RoutedEventArgs e)
+        {
+            sendBadCalc = true;
+        }
+
         private void inject_Click(object sender, RoutedEventArgs e)
         {
             var raw = ((DynamicByteProvider)injectorHexView.ByteProvider).Bytes.ToArray();
@@ -631,6 +630,15 @@ namespace eve_probe
                 var path = Path.GetDirectoryName(Path.GetDirectoryName(procs[0].MainModule.FileName));
                 Environment.SetEnvironmentVariable("PYTHONPATH", path + "\\code.ccp;" + path + "\\bin");
 
+                // Copy object DB
+                var dbFile = "mapObjects.db";
+                var dbPath = path + "\\bin\\staticdata\\" + dbFile;
+                if (!File.Exists(dbFile) || File.GetLastWriteTime(dbFile) != File.GetLastWriteTime(dbPath))
+                {
+                    File.Copy(dbPath, dbFile, true);
+                }
+
+                // Load Python
                 if (LoadLibrary(path + "\\bin\\python27.dll") != IntPtr.Zero)
                 {
                     pythonLoaded = true;
