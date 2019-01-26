@@ -41,13 +41,6 @@ namespace eve_probe
             return null;
         }
 
-        public bool PollBadCalc()
-        {
-            var val = MainWindow.sendBadCalc;
-            MainWindow.sendBadCalc = false;
-            return val;
-        }
-
         public void ReportException(Exception InInfo)
         {
             Log.log("-- error in target --");
@@ -145,8 +138,6 @@ namespace eve_probe
         public static ConcurrentQueue<Tuple<string, byte[], byte[]>> Queue = new ConcurrentQueue<Tuple<string, byte[], byte[]>>();
         public static ConcurrentQueue<string> EncodeQueue = new ConcurrentQueue<string>();
         public static ConcurrentQueue<byte[]> InjectQueue = new ConcurrentQueue<byte[]>();
-
-        public static bool sendBadCalc = false;
 
         public const byte HeaderByte = 0x7E;
         // not a real magic since zlib just doesn't include one..
@@ -426,6 +417,19 @@ namespace eve_probe
                         text = PyTuple_GetItem(tuple, 4);
                         if (text != IntPtr.Zero && PyString_Size(text) > 0)
                         {
+                            var uData2 = PyString_AsString(text);
+                            var size = PyString_Size(text);
+                            var encoded = new byte[size];
+                            Marshal.Copy(uData2, encoded, 0, size);
+
+                            InjectQueue.Enqueue(encoded);
+                            Log.log("Injecting...");
+                            Queue.Enqueue(new Tuple<string, byte[], byte[]>("Inj", encoded, null));
+                        }
+
+                        text = PyTuple_GetItem(tuple, 5);
+                        if (text != IntPtr.Zero && PyString_Size(text) > 0)
+                        {
                             Log.log("-- unmarshaling error (packet " + packet.nr + ") --");
                             Log.log(Marshal.PtrToStringAnsi(PyString_AsString(text)), false);
                             Log.log("-- /unmarshaling error (packet " + packet.nr + ") --");
@@ -514,11 +518,6 @@ namespace eve_probe
         {
             EncodeQueue.Enqueue(injectorJSONView.Text);
             Log.log("Sending to encoder...");
-        }
-
-        private void sendbad_Click(object sender, RoutedEventArgs e)
-        {
-            sendBadCalc = true;
         }
 
         private void inject_Click(object sender, RoutedEventArgs e)

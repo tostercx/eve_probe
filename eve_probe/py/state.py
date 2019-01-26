@@ -5,6 +5,7 @@ import const
 status = {}
 callType = {}
 bridges = []
+injectQueue = []
 
 status['oid'] = {}
 status['lastBoundSS'] = None

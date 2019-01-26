@@ -21,9 +21,10 @@ sys.modules['__faketin__'] = fake_builtin
 
 
 import imp
-const = imp.load_source('const', './py/const.py')
-route = imp.load_source('route', './py/route.py')
-pilot = imp.load_source('pilot', './py/pilot.py')
+#const = imp.load_source('const', './py/const.py')
+#route = imp.load_source('route', './py/route.py')
+#pilot = imp.load_source('pilot', './py/pilot.py')
+trade = imp.load_source('trade', './py/trade.py')
 state = imp.load_source('state', './py/state.py')
 
 
@@ -32,7 +33,8 @@ eveprefs.boot.role = 'client'
 builtinmangler.MangleBuiltins()
 
 
-cache = imp.load_source('state', './py/cache.py')
+# built in cached class tries to boot services...
+cache = imp.load_source('cache', './py/cache.py')
 sys.modules['carbon.common.script.net.objectCaching'] = cache
 
 
@@ -126,6 +128,15 @@ def load(buf):
         meth = ''
         methex = ''
         callID = ''
+        injectMsg = ''
+        
+        
+        try:
+            if len(state.injectQueue) > 0:
+                injectMsg = blue.marshal.Save(deserialize(state.injectQueue.pop())).Str()
+        except:
+            pass
+        
         
         try:
             dest = obj.get('destination', {})
@@ -148,16 +159,19 @@ def load(buf):
         
         # pass to state handler
         state.on_packet(obj)
-        pilot.step()
+        #pilot.step()
+        trade.step(obj)
         
         return (
             pformat(obj),
             obj['__class__'].split('.')[-1] if '__class__' in obj else '',
             meth,
             callID,
+            injectMsg,
             '')
     except:
         return (
+            '',
             '',
             '',
             '',
