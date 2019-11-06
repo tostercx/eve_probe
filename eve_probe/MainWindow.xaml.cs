@@ -627,18 +627,18 @@ namespace eve_probe
 
                 // SharedCache\tq
                 var path = Path.GetDirectoryName(Path.GetDirectoryName(procs[0].MainModule.FileName));
-                Environment.SetEnvironmentVariable("PYTHONPATH", path + "\\code.ccp;" + path + "\\bin");
+                Environment.SetEnvironmentVariable("PYTHONPATH", path + "\\code.ccp;" + path + "\\bin64");
 
                 // Copy object DB
                 var dbFile = "mapObjects.db";
-                var dbPath = path + "\\bin\\staticdata\\" + dbFile;
+                var dbPath = path + "\\bin64\\staticdata\\" + dbFile;
                 if (!File.Exists(dbFile) || File.GetLastWriteTime(dbFile) != File.GetLastWriteTime(dbPath))
                 {
                     File.Copy(dbPath, dbFile, true);
                 }
 
                 // Load Python
-                if (LoadLibrary(path + "\\bin\\python27.dll") != IntPtr.Zero)
+                if (LoadLibrary(path + "\\bin64\\python27.dll") != IntPtr.Zero)
                 {
                     pythonLoaded = true;
                 }

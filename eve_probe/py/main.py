@@ -24,7 +24,7 @@ import imp
 #const = imp.load_source('const', './py/const.py')
 #route = imp.load_source('route', './py/route.py')
 #pilot = imp.load_source('pilot', './py/pilot.py')
-trade = imp.load_source('trade', './py/trade.py')
+#trade = imp.load_source('trade', './py/trade.py')
 state = imp.load_source('state', './py/state.py')
 
 
@@ -36,6 +36,8 @@ builtinmangler.MangleBuiltins()
 # built in cached class tries to boot services...
 cache = imp.load_source('cache', './py/cache.py')
 sys.modules['carbon.common.script.net.objectCaching'] = cache
+evecfg = imp.load_source('evecfg', './py/evecfg.py')
+sys.modules['eve.common.script.sys.eveCfg'] = evecfg
 
 
 inits = {
@@ -160,7 +162,7 @@ def load(buf):
         # pass to state handler
         state.on_packet(obj)
         #pilot.step()
-        trade.step(obj)
+        #trade.step(obj)
         
         return (
             pformat(obj),
