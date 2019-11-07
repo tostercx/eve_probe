@@ -246,7 +246,9 @@ namespace eve_probe
             {
                 Py_Initialize();
                 var main = File.ReadAllText("py\\main.py");
-                PyRun_SimpleString(main);
+                var res = PyRun_SimpleString(main);
+
+                if (res != 0) Log.log("failed to init main script");
             }
 
             while (!appClosing)
@@ -437,7 +439,10 @@ namespace eve_probe
                     }
                     else
                     {
-                        Log.log("-- unknown unmarshaling error (packet " + packet.nr + ") --");
+                        if (main == IntPtr.Zero) Log.log("-- failed to load __main__ module --");
+                        else if (load == IntPtr.Zero) Log.log("-- failed to load load function --");
+                        else if (uData == IntPtr.Zero) Log.log("-- failed to alloc or copy uData --");
+                        else Log.log("-- unknown unmarshaling error (packet " + packet.nr + ") --");
                     }
                 }
             }
@@ -580,7 +585,7 @@ namespace eve_probe
         static extern void Py_Initialize();
 
         [DllImport("python27", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
-        static extern Int32 PyRun_SimpleString([MarshalAs(UnmanagedType.LPStr)]string str);
+        static extern int PyRun_SimpleString([MarshalAs(UnmanagedType.LPStr)]string str);
 
         [DllImport("python27", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
         static extern IntPtr PyImport_AddModule([MarshalAs(UnmanagedType.LPStr)]string name);
@@ -644,7 +649,7 @@ namespace eve_probe
                 }
                 else
                 {
-                    Log.log("Failed to load " + path + "\\bin\\python27.dll");
+                    Log.log("Failed to load " + path + "\\bin64\\python27.dll");
                 }
             }
             catch (Exception ExtInfo)

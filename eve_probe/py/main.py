@@ -34,10 +34,10 @@ builtinmangler.MangleBuiltins()
 
 
 # built in cached class tries to boot services...
-cache = imp.load_source('cache', './py/cache.py')
-sys.modules['carbon.common.script.net.objectCaching'] = cache
-evecfg = imp.load_source('evecfg', './py/evecfg.py')
-sys.modules['eve.common.script.sys.eveCfg'] = evecfg
+#cache = imp.load_source('cache', './py/cache.py')
+#sys.modules['carbon.common.script.net.objectCaching'] = cache
+#evecfg = imp.load_source('evecfg', './py/evecfg.py')
+#sys.modules['eve.common.script.sys.eveCfg'] = evecfg
 
 
 inits = {
