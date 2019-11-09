@@ -26,6 +26,7 @@ import imp
 #pilot = imp.load_source('pilot', './py/pilot.py')
 #trade = imp.load_source('trade', './py/trade.py')
 state = imp.load_source('state', './py/state.py')
+scan = imp.load_source('scan', './py/scan.py')
 
 
 eveprefs.boot = mock.Mock()
@@ -163,6 +164,7 @@ def load(buf):
         state.on_packet(obj)
         #pilot.step()
         #trade.step(obj)
+        scan.step(obj)
         
         return (
             pformat(obj),

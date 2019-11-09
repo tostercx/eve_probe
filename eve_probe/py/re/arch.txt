@@ -1,0 +1,35 @@
+'archetypeID': 38, == wormhole
+'archetypeID': 24, == combat
+'archetypeID': 45, == data
+'archetypeID': 44, == relic
+'archetypeID': 30, == gas
+
+
+                                  'certainty': 0.8321897533051916,
+                                  'data': (200438681217.78067,
+                                           451738627966.0029,
+                                           -408692492582.1925),
+                                  'degraded': False,
+                                  'deviation': 895202524.2392123,
+                                  'difficulty': 3,
+                                  'dungeonName': u'Unsecured Perimeter Amplifier ',
+                                  'dungeonNameID': 111659,
+                                  'factionID': 500021,
+                                  'groupID': 502,
+                                  'id': 'POT-058',
+                                  
+                                  
+                                  {'__class__': 'utillib.KeyVal',
+                                  'certainty': 1.0,
+                                  'data': (264905711284.0,
+                                           -178791423637.0,
+                                           216201953280.0),
+                                  'degraded': False,
+                                  'deviation': 0.0,
+                                  'difficulty': 3,
+                                  'dungeonName': u'Central Sansha Command Center',
+                                  'dungeonNameID': 111829,
+                                  'factionID': 500019,
+                                  'groupID': 502,
+                                  'id': 'MUF-600',
+                                  'itemID': 9001589924000035934L,
