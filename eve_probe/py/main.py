@@ -135,13 +135,6 @@ def load(buf):
         
         
         try:
-            if len(state.injectQueue) > 0:
-                injectMsg = blue.marshal.Save(deserialize(state.injectQueue.pop())).Str()
-        except:
-            pass
-        
-        
-        try:
             dest = obj.get('destination', {})
             meth = dest.get('broadcastID', dest.get('service', ''))
             meth = '' if not meth else str(meth)
@@ -152,6 +145,7 @@ def load(buf):
         except:
             pass
         
+
         try:
             callID = obj.get('destination', {}).get('callID', '')
             if not callID:
@@ -160,11 +154,20 @@ def load(buf):
         except:
             pass
         
+        
         # pass to state handler
         state.on_packet(obj)
         #pilot.step()
         #trade.step(obj)
         scan.step(obj)
+
+
+        try:
+            if len(state.injectQueue) > 0:
+                injectMsg = blue.marshal.Save(deserialize(state.injectQueue.pop())).Str()
+        except:
+            pass
+
         
         return (
             pformat(obj),

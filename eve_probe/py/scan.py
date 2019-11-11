@@ -5,6 +5,7 @@ import random
 stepSize = [0.0, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0]
 
 scanning = False
+lastDouble = False
 target = None
 curStep = 6
 scanMgrOid = None
@@ -103,10 +104,6 @@ def scanStep():
     oid = state.status['oid'][state.status['locationid']]
     node = long(re.search('=(\d+):', oid).group(1))
 
-    #if len(state.status['nodesOfInterest']) == 0:
-    #    return
-    #node = state.status['nodesOfInterest'][0]
-
     if scanMgrOid == None:
         scanning = True
         state.injectQueue.append(getScanMgr(node))
@@ -125,13 +122,17 @@ def scanStep():
         target = signatures.values()[0]['targetID']
         curStep = 6
     
-    state.injectQueue.append(beginScan(node, scanMgrOid, signatures[target]['position'], curStep))
+    data = signatures[target]['position']
+    if type(data) == list:
+        data = data[random.randint(0,1)]
+
+    state.injectQueue.append(beginScan(node, scanMgrOid, data, curStep))
     curStep -= 1
 
 
 
 def step(pck):
-    global signatures, scanning, scanMgrOid, target, curStep
+    global signatures, scanning, scanMgrOid, target, curStep, lastDouble
 
     #state.status['liveProbes'] = liveProbes
     state.status['signatures'] = signatures
@@ -161,15 +162,33 @@ def step(pck):
                 if pck['destination']['broadcastID'] == 'OnSystemScanStopped':
                     scanning = False
                     results = pck['payload'][1]['__content__'][1][1][1]
-                    if results != None:
+                    if results == None:
+                        curStep += 1
+                    else:
                         for result in results:
                             if result['id'] in signatures:
+                                isCurTarget = target == result['id']
+                                bumpStep = False
+                                bump = 1
+
+
                                 if result['certainty'] == 1.0:
+                                    if isCurTarget:
+                                        lastDouble = False
                                     del signatures[result['id']]
                                     if target == result['id']:
                                         target = None
-                                elif result['degraded'] == False:
+
+                                else:
+                                    if result['degraded'] and isCurTarget:
+                                        bumpStep = True
+                                        if not lastDouble:
+                                            bump = 2
+                                    
                                     data = result['data']
+                                    if isCurTarget:
+                                        lastDouble = False
+
                                     if type(data) is float:
                                         if type(result['pos']) == tuple:
                                             signatures[result['id']]['position'] = result['pos']
@@ -177,13 +196,18 @@ def step(pck):
                                     else:
                                         if len(data) == 2:
                                             #data = tuple([(x + y)/2 for x, y in zip(data[0], data[1])])
-                                            data = data[random.randint(0,1)]
-                                            #curStep += 1
+                                            #data = data[random.randint(0,1)]
+                                            if isCurTarget:
+                                                lastDouble = True
+
                                         if type(data) == dict:
                                             data = data['point']
-                                            curStep += 1
+                                            bumpStep = True
                                         signatures[result['id']]['position'] = data
                                         signatures[result['id']]['certainty'] = result['certainty']
+
+                                if isCurTarget and bumpStep:
+                                    curStep += bump
                 
                 # new probe
                 if pck['destination']['broadcastID'] == 'OnNewProbe':
@@ -202,7 +226,6 @@ def step(pck):
                         scanning = False
                         target = None
                         # send reload
-    
     
     if not scanning and len(liveProbes) > 7 and len(signatures) > 0:
         scanStep()
