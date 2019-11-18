@@ -119,7 +119,10 @@ def scanStep():
     scanning = True
 
     if target == None:
-        target = signatures.values()[0]['targetID']
+        order = {44: 0, 45: 1, 38: 2}
+        sigVals = signatures.values()
+        sigVals.sort(key=lambda val: order[val['archetypeID']])
+        target = sigVals[0]['targetID']
         curStep = 6
     
     data = signatures[target]['position']
