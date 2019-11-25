@@ -15,6 +15,7 @@ using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Windows.Controls;
+using System.Text;
 
 namespace eve_probe
 {
@@ -581,6 +582,9 @@ namespace eve_probe
         [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Ansi)]
         static extern IntPtr LoadLibrary([MarshalAs(UnmanagedType.LPStr)]string lpFileName);
 
+        [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Ansi)]
+        internal static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
+
         [DllImport("python27", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
         static extern void Py_Initialize();
 
@@ -632,7 +636,7 @@ namespace eve_probe
 
                 // SharedCache\tq
                 var path = Path.GetDirectoryName(Path.GetDirectoryName(procs[0].MainModule.FileName));
-                Environment.SetEnvironmentVariable("PYTHONPATH", path + "\\code.ccp;" + path + "\\bin64");
+                var pyPath = path + "\\code.ccp;" + path + "\\bin64";
 
                 // Copy object DB
                 var dbFile = "mapObjects.db";
@@ -643,8 +647,14 @@ namespace eve_probe
                 }
 
                 // Load Python
-                if (LoadLibrary(path + "\\bin64\\python27.dll") != IntPtr.Zero)
+                var pyDll = LoadLibrary(path + "\\bin64\\python27.dll");
+                if (pyDll != IntPtr.Zero)
                 {
+                    var Py_GetPathWData = GetProcAddress(pyDll, "Py_GetPathWData");
+                    var rawPath = Marshal.AllocHGlobal(pyPath.Length * 2 + 2);
+                    var pathBytes = Encoding.Unicode.GetBytes(pyPath);
+                    Marshal.Copy(pathBytes, 0, rawPath, pathBytes.Length);
+                    Marshal.WriteIntPtr(Py_GetPathWData, rawPath);
                     pythonLoaded = true;
                 }
                 else
@@ -663,6 +673,7 @@ namespace eve_probe
         #region "CodeIndent Handlers"
         const int SCI_SETLINEINDENTATION = 2126;
         const int SCI_GETLINEINDENTATION = 2127;
+
         private void SetIndent(ScintillaNET.Scintilla scin, int line, int indent)
         {
             scin.DirectMessage(SCI_SETLINEINDENTATION, new IntPtr(line), new IntPtr(indent));
