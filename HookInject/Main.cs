@@ -117,6 +117,10 @@ namespace HookInject
                 //System.Windows.Forms.MessageBox.Show(ExtInfo.ToString());
                 // Ping() will raise an exception if host is unreachable
             }
+
+            foreach (var o in antiGC)
+                o.Dispose();
+            LocalHook.Release();
         }
 
 
