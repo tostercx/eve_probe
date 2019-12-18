@@ -12,6 +12,7 @@ scanMgrOid = None
 
 liveProbes = {}
 signatures = {}
+knownSigs = {}
 
 scanMgrCall = 103461L
 
@@ -135,7 +136,7 @@ def scanStep():
 
 
 def step(pck):
-    global signatures, scanning, scanMgrOid, target, curStep, lastDouble
+    global signatures, scanning, scanMgrOid, target, curStep, lastDouble, knownSigs
 
     #state.status['liveProbes'] = liveProbes
     state.status['signatures'] = signatures
@@ -159,7 +160,8 @@ def step(pck):
                     for key in tracked:
                         item = tracked[key]
                         if item['__class__'].endswith('.SignatureInfo') and item['archetypeID'] in [38,44,45]: # wormhole, relic, data
-                            signatures[item['targetID']] = item
+                            if not item['targetID'] in knownSigs:
+                                signatures[item['targetID']] = item
                 
                 # scan done
                 if pck['destination']['broadcastID'] == 'OnSystemScanStopped':
@@ -178,6 +180,7 @@ def step(pck):
                                 if result['certainty'] == 1.0:
                                     if isCurTarget:
                                         lastDouble = False
+                                    knownSigs[result['id']] = True
                                     del signatures[result['id']]
                                     if target == result['id']:
                                         target = None
